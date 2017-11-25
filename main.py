@@ -49,8 +49,8 @@ class Player(pygame.sprite.Sprite):
 
 
     def rotate(self, pos):
-        self.angle = math.degrees(math.atan2\
-              (self.rect[0]-pos[0], self.rect[1]-pos[1]))
+        self.angle = np.degrees(np.arctan2\
+                     (self.rect[0]-pos[0], self.rect[1]-pos[1]))
         
         self.image=pygame.transform.rotate(self.image, self.angle)
         self.rect = self.image.get_rect()
@@ -59,7 +59,8 @@ class Player(pygame.sprite.Sprite):
     def animate(self, pos):
         if (np.fabs(self.vel[0]) > 0.4 or np.fabs(self.vel[1]) > 0.4):
             self.i += 1
-            self.image = pygame.image.load(self.sprite_img[self.i%len(self.sprite_img)])
+            self.image = pygame.image.load\
+                         (self.sprite_img[self.i%len(self.sprite_img)])
 
             self.rotate(pos)
 
