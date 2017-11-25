@@ -35,9 +35,10 @@ class Zombie(pygame.sprite.Sprite):
         self.drag = 0.3
         self.prob = WALK_PROB
         self.walks = []
-        self.t = 0.0
+        self.a = ACCEL
+        self.V = 3.0
 
-        self.seesPlayer = True
+        self.seesPlayer = False
 
 
     def setup(self, vel=np.array([0, 0])):
@@ -48,7 +49,18 @@ class Zombie(pygame.sprite.Sprite):
         self.image = pygame.image.load(self.sprite_img[0])
         self.rect = self.image.get_rect()
 
-        self.walks = [[0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]]
+        '''
+        Velocity in order: up, up-right, right, down-right, down, down-left,
+                           left, up-left
+        '''
+        self.walks = [[0, -1], \
+                      [1, -1], \
+                      [1, 0],  \
+                      [1, 1],  \
+                      [0, 1],  \
+                      [-1, 1], \
+                      [-1, 0], \
+                      [-1, -1]]
 
         self.pos[0] = random.choice([random.randint(0, 100),\
                                      random.randint(WIDTH-100, WIDTH)])
@@ -78,12 +90,14 @@ class Zombie(pygame.sprite.Sprite):
                 if rand_choice <= cum_prob[i]:
                     vel = self.walks[i]
                     break
+
+            vel = np.multiply(normalize(vel), self.V)
         else:
             vel = self.vel
 
-        self.accel = np.multiply(vel, ACCEL)
+        self.accel = np.multiply(vel, self.a)
 
-        return normalize(vel)
+        return vel
 
 
     def set_pos(self, pos):
@@ -106,21 +120,18 @@ class Zombie(pygame.sprite.Sprite):
 
     def update(self):
 
-        self.vel = self.random_walk()
+        if not self.seesPlayer:
+            self.vel = self.random_walk()
+
         self.curr_time += self.dt
-        if self.seesPlayer:
-            if self.solver.successful():
+        if self.solver.successful():
 
-                self.solver.integrate(self.curr_time)
-                pos = self.solver.y[0:2]
-                self.vel = self.solver.y[2:4]
-                # if not math.isnan(self.vel[0]):
-                #     print self.vel[0]
-        else:
-            pos = self.pos + np.multiply(self.vel, self.dt)
+            self.solver.integrate(self.curr_time)
+            pos = self.solver.y[0:2]
+            self.vel = self.solver.y[2:4]
 
-        pos = check_boundary(pos)
-        self.set_pos(pos)
+            pos = check_boundary(pos)
+            self.set_pos(pos)
 
 
 class Player(pygame.sprite.Sprite):
@@ -139,7 +150,6 @@ class Player(pygame.sprite.Sprite):
         self.accel = np.array([0, 0])
         self.solver = ode(self.f)
         self.solver.set_integrator('dop853')
-
         self.drag = 0.03
 
     def setup(self, pos, vel=np.array([0, 0])):
@@ -167,7 +177,7 @@ class Player(pygame.sprite.Sprite):
 
 
     def set_vel(self, vel=np.array([0, 0])):
-        self.vel = normalize(vel)
+        self.vel = normalize(vel)*vel
 
 
     def f(self, t, state):
@@ -199,6 +209,7 @@ class Z_World():
         self.zombies = pygame.sprite.Group()
         self.player = pygame.sprite.Group()
         self.screen = screen
+        self.see = False
 
     def add_player(self, sprite):
         self.p = sprite
@@ -217,8 +228,16 @@ class Z_World():
 
     def update(self):
         self.p.update()
-
+        self
         for z in self.zombies:
+            if np.fabs(length(z.pos - self.p.pos)) < 50 and not z.seesPlayer:
+                u = normalize(self.p.pos - z.pos)
+                z.vel = u*z.V
+                z.seesPlayer =  True
+            
+            if length(z.pos - self.p.pos) >= 50:
+                z.seesPlayer =  False
+
             z.update()
 
         self.draw_player()
@@ -260,7 +279,7 @@ def length(v):
 
 
 def normalize(v):
-    if length(v) > 0:
+    if length(v) > 0.0:
         return v / length(v)
     else:
         return v
