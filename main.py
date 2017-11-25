@@ -7,6 +7,8 @@ from scipy.integrate import ode
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 
+ACCEL = 0.3
+
 class Player(pygame.sprite.Sprite):
     def __init__(self, dt=0.1):
         pygame.sprite.Sprite.__init__(self)
@@ -51,10 +53,11 @@ class Player(pygame.sprite.Sprite):
               (self.rect[0]-pos[0], self.rect[1]-pos[1]))
         
         self.image=pygame.transform.rotate(self.image, self.angle)
+        self.rect = self.image.get_rect()
 
 
     def animate(self, pos):
-        if (np.fabs(self.vel[0]) > 1 or np.fabs(self.vel[1]) > 1):
+        if (np.fabs(self.vel[0]) > 0.4 or np.fabs(self.vel[1]) > 0.4):
             self.i += 1
             self.image = pygame.image.load(self.sprite_img[self.i%len(self.sprite_img)])
 
@@ -135,12 +138,10 @@ def main():
     screen_height = 400
     screen = pygame.display.set_mode([screen_width, screen_height])
     screen.fill(WHITE)
-
-    done = False
      
     # Used to manage how fast the screen updates
     clock = pygame.time.Clock()
-    clock.tick(30)
+    clock.tick(20)
 
     player = Player()
     player.setup([screen_width/2, screen_height/2])
@@ -153,7 +154,7 @@ def main():
     vel = np.array([0, 0])
     world.draw_player()
     # -------- Main Program Loop -----------
-    while not done:
+    while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT or \
                event.type == pygame.KEYDOWN and event.key == pygame.K_q:
@@ -180,7 +181,7 @@ def main():
 
         for p in world.player:
             p.set_vel(vel)
-            p.accel = [vel[0]*0.2, vel[1]*0.2]
+            p.accel = [vel[0]*ACCEL, vel[1]*ACCEL]
             p.update()
 
         update(screen, world)
