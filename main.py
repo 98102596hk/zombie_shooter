@@ -14,10 +14,11 @@ WIDTH = 1080
 HEIGHT = 720
 
 WALK_PROB = [0.125] * 8
+ZOMBIE_HEALTH = 3
 
 
 class Zombie(pygame.sprite.Sprite):
-    def __init__(self, dt=1.0):
+    def __init__(self, dt=0.5):
         pygame.sprite.Sprite.__init__(self)
         self.i = 0
         self.pos_vec = np.array([0, -1])
@@ -37,8 +38,10 @@ class Zombie(pygame.sprite.Sprite):
         self.walks = []
         self.a = ACCEL
         self.V = 3.0
-
+        self.health = ZOMBIE_HEALTH
         self.seesPlayer = False
+        self.h = 0.0
+        self.w = 0.0
 
 
     def setup(self, vel=np.array([0, 0])):
@@ -47,6 +50,9 @@ class Zombie(pygame.sprite.Sprite):
 
 
         self.image = pygame.image.load(self.sprite_img[0])
+        self.image = pygame.transform.scale(self.image, (int(30), int(60)))
+        self.h = self.image.get_height()
+        self.w = self.image.get_width()
         self.rect = self.image.get_rect()
 
         '''
@@ -80,13 +86,13 @@ class Zombie(pygame.sprite.Sprite):
     def random_walk(self):
         continue_random = random.uniform(0, 1)
 
-        if continue_random < 0.03:
+        if continue_random < 0.05 and not self.seesPlayer:
             rand_choice = random.uniform(0, 1)
             cum_prob = np.cumsum(self.prob)
 
             vel = np.array([-1, -1])
 
-            for i in range(0, len(cum_prob)-1):
+            for i in range(0, len(cum_prob)):
                 if rand_choice <= cum_prob[i]:
                     vel = self.walks[i]
                     break
@@ -101,8 +107,10 @@ class Zombie(pygame.sprite.Sprite):
 
 
     def set_pos(self, pos):
-        if (np.fabs(self.vel[0]) > 0.1 or np.fabs(self.vel[1]) > 0.1):
-            animate(self, pos)
+        if (np.fabs(self.vel[0]) > 0.4 or np.fabs(self.vel[1]) > 0.4) or self.seesPlayer:
+            animate(self)
+
+            rotate(self, pos)
 
         self.pos = pos
         self.rect = self.pos
@@ -119,9 +127,7 @@ class Zombie(pygame.sprite.Sprite):
 
 
     def update(self):
-
-        if not self.seesPlayer:
-            self.vel = self.random_walk()
+        self.vel = self.random_walk()
 
         self.curr_time += self.dt
         if self.solver.successful():
@@ -131,11 +137,12 @@ class Zombie(pygame.sprite.Sprite):
             self.vel = self.solver.y[2:4]
 
             pos = check_boundary(pos)
+
             self.set_pos(pos)
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, dt=0.2):
+    def __init__(self, dt=0.5):
         pygame.sprite.Sprite.__init__(self)
         self.i = 0
         self.pos_vec = np.array([0, -1])
@@ -147,6 +154,7 @@ class Player(pygame.sprite.Sprite):
         self.rect = None
         self.curr_time = 0
         self.dt = dt
+        self.gun = "pistol"
         self.accel = np.array([0, 0])
         self.solver = ode(self.f)
         self.solver.set_integrator('dop853')
@@ -154,11 +162,10 @@ class Player(pygame.sprite.Sprite):
 
     def setup(self, pos, vel=np.array([0, 0])):
         for img_name in os.listdir("player/"):
-            print img_name
             self.sprite_img.append(os.path.join("player", img_name))
 
-
         self.image = pygame.image.load(self.sprite_img[0])
+        self.image = pygame.transform.scale(self.image, (int(30), int(60)))
         self.rect = self.image.get_rect()
 
         self.pos = pos
@@ -170,7 +177,8 @@ class Player(pygame.sprite.Sprite):
 
     def set_pos(self, pos):
         if (np.fabs(self.vel[0]) > 0.8 or np.fabs(self.vel[1]) > 0.8):
-            animate(self, pos)
+            animate(self)
+            rotate(self, pos)
 
         self.pos = pos
         self.rect = self.pos
@@ -203,20 +211,94 @@ class Player(pygame.sprite.Sprite):
             self.set_pos(pos)
 
 
+class Bullet(pygame.sprite.Sprite):
+    def __init__(self, gun="pistol", dt=0.2):
+        pygame.sprite.Sprite.__init__(self)
+        self.i = 0
+        self.pos_vec = np.array([0, -1])
+        self.pos = np.array([0,0])
+        self.vel = np.array([0,0])
+        self.angle = 0
+        self.sprite_img = []
+        self.image = None
+        self.rect = None
+        self.curr_time = 0
+        self.dt = dt
+        self.accel = np.array([0, 0])
+        self.solver = ode(self.f)
+        self.solver.set_integrator('dop853')
+        self.drag = 0.0
+        self.V = 100.0
+        self.shot = False
+        self.type = gun
+
+    def setup(self, pos, vel=np.array([0, 0])):
+        img_name = "bullet/" + self.type + ".png"
+        self.image = pygame.image.load(img_name)
+        self.image = pygame.transform.scale(self.image, (int(10), int(10)))
+
+        self.rect = self.image.get_rect()
+
+        self.set_vel(vel)
+        self.set_pos(pos)
+        self.solver.set_initial_value([self.pos[0], self.pos[1], self.vel[0], self.vel[1]], self.curr_time)
+
+
+    def set_pos(self, pos):
+        self.pos = pos
+        self.rect = self.pos
+
+
+    def set_vel(self, vel=np.array([0, 0])):
+        self.vel = normalize(vel)*self.V
+
+
+    def f(self, t, state):
+        dx = state[2]
+        dvx = 0
+
+        dy = state[3]
+        dvy = 0
+
+        return [dx, dy, dvx, dvy]
+
+
+    def update(self):
+        self.curr_time += self.dt
+        if self.solver.successful():
+
+            self.solver.integrate(self.curr_time)
+            pos = self.solver.y[0:2]
+            self.vel = self.solver.y[2:4]
+
+            if not out_of_bounds(pos):
+                self.set_pos(pos)
+            else:
+                self.kill()
+
+
 class Z_World():
     def __init__(self, screen):
         self.p = pygame.sprite.Sprite
         self.zombies = pygame.sprite.Group()
         self.player = pygame.sprite.Group()
+        self.bullets = pygame.sprite.Group()
         self.screen = screen
         self.see = False
+
 
     def add_player(self, sprite):
         self.p = sprite
         self.player.add(self.p)
 
+
     def add_zombie(self, sprite):
         self.zombies.add(sprite)
+
+
+    def add_bullet(self, sprite):
+        self.bullets.add(sprite)
+
 
     def draw_player(self):
         self.player.draw(self.screen)
@@ -224,40 +306,62 @@ class Z_World():
 
     def draw_zombies(self):
         self.zombies.draw(self.screen)
+    
+
+    def draw_bullets(self):
+        self.bullets.draw(self.screen)
 
 
     def update(self):
         self.p.update()
-        self
+
         for z in self.zombies:
-            if np.fabs(length(z.pos - self.p.pos)) < 50 and not z.seesPlayer:
+            if np.fabs(length(z.pos - self.p.pos)) < 200:
                 u = normalize(self.p.pos - z.pos)
-                z.vel = u*z.V
-                z.seesPlayer =  True
-            
-            if length(z.pos - self.p.pos) >= 50:
-                z.seesPlayer =  False
+                z.vel = z.V*u
+                z.seesPlayer = True
+            else:
+                z.seesPlayer = False
 
             z.update()
 
+
+        for b in self.bullets:
+            if not b.shot:
+                b.shot = True
+                b.setup(self.p.pos, self.p.pos)
+                b.image = pygame.transform.rotate(b.image, self.p.angle)
+
+            for z in self.zombies:
+                if np.fabs(length(b.pos-z.pos)) < z.h / 2.0:
+                    z.health -= 1
+                    b.kill()
+                    if z.health <= 0:
+                        z.kill()
+                    
+                    break
+
+            b.update()
+
+
+
         self.draw_player()
+        self.draw_bullets()
         self.draw_zombies()
 
 
 def rotate(sprite, pos):
     sprite.angle = np.degrees(np.arctan2\
-                 (sprite.rect[0]-pos[0], sprite.rect[1]-pos[1]))
+                   (sprite.rect[0] - pos[0], sprite.rect[1] - pos[1]))
     
-    sprite.image=pygame.transform.rotate(sprite.image, sprite.angle)
+    sprite.image = pygame.transform.rotate(sprite.image, sprite.angle)
     sprite.rect = sprite.image.get_rect()
 
 
-def animate(sprite, pos):
+def animate(sprite):
     sprite.i += 1
     sprite.image = pygame.image.load\
-                 (sprite.sprite_img[sprite.i%len(sprite.sprite_img)])
-                 
-    rotate(sprite, pos)
+                   (sprite.sprite_img[sprite.i % len(sprite.sprite_img)])
 
 
 def check_boundary(pos):
@@ -273,6 +377,11 @@ def check_boundary(pos):
 
     return pos
 
+def out_of_bounds(pos):
+    if pos[0]*pos[1] < 0 or pos[0] > WIDTH or pos[1] > HEIGHT:
+        return True
+
+    return False
 
 def length(v):
     return np.linalg.norm(v)
@@ -305,10 +414,11 @@ def main():
     # Used to manage how fast the screen updates
     clock = pygame.time.Clock()
 
-    player = Player()
-    player.setup([screen_width/2, screen_height/2])
 
     world = Z_World(screen)
+
+    player = Player()
+    player.setup([screen_width / 2, screen_height / 2])
     world.add_player(player)
 
     for i in range(5):
@@ -318,17 +428,13 @@ def main():
 
     score = 0
     
-    print WALK_PROB
+
     vel = np.array([0, 0])
     world.draw_player()
+
+
     # -------- Main Program Loop -----------
     while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT or \
-               event.type == pygame.KEYDOWN and event.key == pygame.K_q:
-                pygame.quit()
-                exit()
-
         keys = pygame.key.get_pressed()
 
         if keys[pygame.K_w] or keys[pygame.K_s]:
@@ -351,6 +457,21 @@ def main():
             p.set_vel(vel)
             p.accel = np.multiply(vel, ACCEL)
 
+
+        if player.gun == "machine":
+            if keys[pygame.K_l]:
+                bullet = Bullet()
+                world.add_bullet(bullet)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT or \
+               event.type == pygame.KEYDOWN and event.key == pygame.K_q:
+                pygame.quit()
+                exit()
+            elif p.gun == "pistol" and event.type == pygame.KEYDOWN and event.key == pygame.K_RCTRL:
+                bullet = Bullet()
+                world.add_bullet(bullet)
+            
         update(screen, world)
 
 if __name__ == '__main__':
