@@ -61,8 +61,8 @@ class Z_World():
         for z in self.zombies:
             if z.alive:
                 # Player-Zombie collision
-                if np.fabs(length(z.pos - self.p.pos)) < 0.5 and self.p.alive:
-                    if self.health_count > 20:
+                if np.fabs(length(z.pos - self.p.pos)) < self.p.h and self.p.alive:
+                    if self.health_count > 50:
                         self.health_count = 0
                         self.p.health -= 20
 
@@ -73,7 +73,8 @@ class Z_World():
                         self.p.alive = False
                         z.seesPlayer = False
                         
-                elif np.fabs(length(z.pos - self.p.pos)) < 200:
+                # Zombie near player
+                if np.fabs(length(z.pos - self.p.pos)) < 200:
                     if self.p.alive:
                         u = normalize(self.p.pos - z.pos)
                         z.vel = z.V * u
@@ -87,14 +88,16 @@ class Z_World():
         for b in self.bullets:
             if not b.shot:
                 b.shot = True
-                b.setup(self.p.pos, self.p.vel)
+                b.type = self.p.gun
+
+                b.setup([self.p.pos[0] + self.p.w/2, self.p.pos[1]], self.p.vel)
                 b.image = pygame.transform.rotate(b.image, self.p.angle)
 
             
             # Zombie-Bullet collision
             for z in self.zombies:
                 if z.alive:
-                    if np.fabs(length(b.pos-z.pos)) < z.h / 2.0:
+                    if np.fabs(length(b.pos - z.pos)) < z.h / 2.0:
                         b.kill()
                         self.zhealth_count = 100
                         self.showZHealth = True
@@ -158,10 +161,37 @@ def main():
     vel = np.array([0, 0])
     world.draw_player()
 
-
+    count = 0
+    gun_count = 30
     # -------- Main Program Loop -----------
     while len(world.zombies) != 0:
         keys = pygame.key.get_pressed()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT or \
+               event.type == pygame.KEYDOWN and event.key == pygame.K_q:
+                pygame.quit()
+                exit()
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_1:
+                    player.gun = "pistol"
+                    gun_count = 30
+                elif event.key == pygame.K_2:
+                    player.gun = "machine"
+                    gun_count = 0
+                elif event.key == pygame.K_RCTRL:
+                    if player.gun == "pistol":
+                        bullet = Bullet()
+                        world.add_bullet(bullet)
+
+        if player.gun == "machine":
+            if keys[pygame.K_RCTRL]:
+                # count += 1
+                # if count > gun_count:
+                    # count = 0
+                bullet = Bullet()
+                world.add_bullet(bullet)
 
         if player.alive:
             if keys[pygame.K_w] or keys[pygame.K_s]:
@@ -181,25 +211,8 @@ def main():
                 vel[0] = 0
 
             player.set_vel(vel)
-            player.accel = np.multiply(vel, ACCEL)
+            player.accel = np.multiply(vel, ACCEL)        
 
-
-            if player.gun == "machine":
-                if keys[pygame.K_l]:
-                    bullet = Bullet()
-                    world.add_bullet(bullet)
-            elif player.gun == "pistol":
-                for event in pygame.event.get():
-                     if event.type == pygame.KEYDOWN and event.key == pygame.K_RCTRL:
-                        bullet = Bullet()
-                        world.add_bullet(bullet)
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT or \
-               event.type == pygame.KEYDOWN and event.key == pygame.K_q:
-                pygame.quit()
-                exit()
-            
             
         update(screen, world, bg)
 

@@ -20,6 +20,8 @@ class Player(pygame.sprite.Sprite):
         self.drag = 0.03
         self.health = HUMAN_HEALTH
         self.alive = True
+        self.h = 0
+        self.w = 0
 
 
     def setup(self, pos, vel=np.array([0, 0])):
@@ -29,6 +31,8 @@ class Player(pygame.sprite.Sprite):
         self.image = pygame.image.load(self.sprite_img[0])
         self.image = pygame.transform.scale(self.image, (int(30), int(60)))
         self.rect = self.image.get_rect()
+        self.h = self.image.get_height()
+        self.w = self.image.get_width()
 
         self.pos = pos
         self.vel = vel
