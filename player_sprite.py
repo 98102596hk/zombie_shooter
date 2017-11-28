@@ -22,9 +22,9 @@ class Player(pygame.sprite.Sprite):
         self.alive = True
         self.h = 0
         self.w = 0
+        self.dir = np.array([0, -1])
 
-
-    def setup(self, pos, vel=np.array([0, 0])):
+    def setup(self, pos=np.array([0, 0]), vel=np.array([0, 0])):
         for img_name in os.listdir("player/"):
             self.sprite_img.append(os.path.join("player", img_name))
 
@@ -34,10 +34,8 @@ class Player(pygame.sprite.Sprite):
         self.h = self.image.get_height()
         self.w = self.image.get_width()
 
-        self.pos = pos
-        self.vel = vel
-
-        self.set_pos(self.pos)
+        self.set_vel(vel)
+        self.set_pos(pos)
         self.solver.set_initial_value([self.pos[0], self.pos[1], self.vel[0], self.vel[1]], self.curr_time)
 
 
@@ -52,7 +50,6 @@ class Player(pygame.sprite.Sprite):
 
     def set_vel(self, vel=np.array([0, 0])):
         self.vel = normalize(vel)*vel
-
 
     def f(self, t, state):
         dx = state[2]

@@ -29,7 +29,7 @@ class Zombie(pygame.sprite.Sprite):
         self.b_vel = np.array([0, 0])
         self.off = 0
         self.alive = True
-
+        self.alert = True
 
     def setup(self, vel=np.array([0, 0])):
         for img_name in os.listdir("zombie/"):

@@ -5,9 +5,9 @@ from bullet_sprite import *
 
 
 class Background(pygame.sprite.Sprite):
-    def __init__(self, image_file="bg.png", location=[0, 0]):
+    def __init__(self, image="bg.png"):
         pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.image.load("bg.png")
+        self.image = pygame.image.load(image)
         self.image = pygame.transform.scale(self.image, (int(WIDTH), int(HEIGHT)))
         self.rect = self.image.get_rect()
 
@@ -26,6 +26,12 @@ class Z_World():
         self.wasted_logo = None
         self.wasted_h = 0
         self.wasted_w = 0
+        self.alert = True
+
+        self.flesh_hit = pygame.mixer.Sound('sound_fx/bullet_flesh.wav')
+        self.flesh_hit.set_volume(0.5)
+        self.wasted = pygame.mixer.Sound('sound_fx/wasted.wav')
+        self.alert_sound = pygame.mixer.Sound('sound_fx/alert.wav')
 
 
     def add_player(self, sprite):
@@ -56,8 +62,12 @@ class Z_World():
 
 
     def update(self):
-        self.p.update()
+        if self.p.alive:
+            self.p.update()
+        else:
+            self.p.image = pygame.image.load("dead_player/1.png")
 
+        self.alert = True
         for z in self.zombies:
             if z.alive:
                 # Player-Zombie collision
@@ -69,21 +79,38 @@ class Z_World():
                     self.health_count += 1
 
                     if self.p.health <= 0:
-                        self.p.image = pygame.image.load("dead_player/1.png")
+                        self.wasted.play()
+                        if pygame.mixer.music.get_busy():
+                            stop_music(0)
+                        self.wasted.play()
+
                         self.p.alive = False
                         z.seesPlayer = False
+
                         
                 # Zombie near player
                 if np.fabs(length(z.pos - self.p.pos)) < 200:
                     if self.p.alive:
+                        if z.alert and not pygame.mixer.music.get_busy():
+                            z.alert = False
+                            self.alert_sound.play()
+                            play_music()
+
                         u = normalize(self.p.pos - z.pos)
                         z.vel = z.V * u
                         z.seesPlayer = True
                 else:
+                    z.alert = True
                     z.seesPlayer = False
+
+                self.alert = self.alert and z.alert
 
                 z.update()
                 z.b_vel = [0, 0]
+
+        if self.alert and pygame.mixer.music.get_busy():
+            stop_music()
+
 
         for b in self.bullets:
             if not b.shot:
@@ -98,6 +125,7 @@ class Z_World():
             for z in self.zombies:
                 if z.alive:
                     if np.fabs(length(b.pos - z.pos)) < z.h / 2.0:
+                        self.flesh_hit.play()
                         b.kill()
                         self.zhealth_count = 100
                         self.showZHealth = True
@@ -107,9 +135,8 @@ class Z_World():
                         if z.health <= 0:
                             z.alive = False
                             z.image = pygame.image.load("dead_zombie/1.png")
-                            # z.kill()
 
-            b.update()           
+                b.update()           
 
 
         self.draw_player()
@@ -133,8 +160,9 @@ def update(screen, world, bg):
 def main():
     # Initialize Pygame
     pygame.init()
+    pygame.mixer.init()
     pygame.display.set_caption("Z World Survival")
-    bg = Background('background_image.png', [0,0])
+    bg = Background()
     # Set the height and width of the screen
     screen_width = WIDTH
     screen_height = HEIGHT
@@ -155,12 +183,16 @@ def main():
         zombie.setup()
         world.add_zombie(zombie)
 
-    score = 0
-    
+
+    pistol = pygame.mixer.Sound('sound_fx/pistol.wav')
+    machine = pygame.mixer.Sound('sound_fx/machine.wav')
+    pistol.set_volume(0.07)
+    machine.set_volume(0.02)
+
 
     vel = np.array([0, 0])
     world.draw_player()
-
+    the_end = False
     count = 0
     gun_count = 30
     # -------- Main Program Loop -----------
@@ -184,14 +216,13 @@ def main():
                     if player.gun == "pistol":
                         bullet = Bullet()
                         world.add_bullet(bullet)
+                        pistol.play()
 
         if player.gun == "machine":
             if keys[pygame.K_RCTRL]:
-                # count += 1
-                # if count > gun_count:
-                    # count = 0
                 bullet = Bullet()
                 world.add_bullet(bullet)
+                machine.play()
 
         if player.alive:
             if keys[pygame.K_w] or keys[pygame.K_s]:
@@ -212,7 +243,10 @@ def main():
 
             player.set_vel(vel)
             player.accel = np.multiply(vel, ACCEL)        
-
+        else:
+            if not the_end:
+                the_end = True
+                bg = Background("bg_dead.png")
             
         update(screen, world, bg)
 

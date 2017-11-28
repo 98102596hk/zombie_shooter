@@ -64,3 +64,10 @@ def normalize(v):
         return v / length(v)
     else:
         return v
+
+def play_music():
+    pygame.mixer.music.load('bg_music/theme.mp3')
+    pygame.mixer.music.play()
+
+def stop_music(fade=2000):
+    pygame.mixer.music.fadeout(fade)
