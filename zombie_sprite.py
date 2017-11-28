@@ -79,7 +79,7 @@ class Zombie(pygame.sprite.Sprite):
 
             vel = np.array([-1, -1])
 
-            for i in range(0, len(cum_prob)):
+            for i in range(0, len(cum_prob)-1):
                 if rand_choice <= cum_prob[i]:
                     vel = self.walks[i]
                     break

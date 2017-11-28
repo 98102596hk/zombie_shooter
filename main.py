@@ -189,7 +189,7 @@ def main():
     pistol.set_volume(0.07)
     machine.set_volume(0.02)
 
-
+    paused = False
     vel = np.array([0, 0])
     world.draw_player()
     the_end = False
@@ -217,6 +217,10 @@ def main():
                         bullet = Bullet()
                         world.add_bullet(bullet)
                         pistol.play()
+                elif event.key == pygame.K_p:
+                    paused = True
+                elif event.key == pygame.K_r:
+                    paused = False
 
         if player.gun == "machine":
             if keys[pygame.K_RCTRL]:
@@ -247,8 +251,9 @@ def main():
             if not the_end:
                 the_end = True
                 bg = Background("bg_dead.png")
-            
-        update(screen, world, bg)
+          
+        if not paused:  
+            update(screen, world, bg)
 
 if __name__ == '__main__':
     main()
