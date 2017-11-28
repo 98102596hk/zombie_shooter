@@ -7,6 +7,8 @@ from scipy.integrate import ode
 # set up the colors
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
 
 ACCEL = 0.3
 
@@ -14,7 +16,9 @@ WIDTH = 1080
 HEIGHT = 720
 
 WALK_PROB = [0.125] * 8
-ZOMBIE_HEALTH = 3
+ZOMBIE_HEALTH = 100
+HUMAN_HEALTH = 200
+
 
 def rotate(sprite, pos):
     sprite.angle = np.degrees(np.arctan2\
@@ -43,11 +47,13 @@ def check_boundary(pos):
 
     return pos
 
+
 def out_of_bounds(pos):
     if pos[0]*pos[1] < 0 or pos[0] > WIDTH or pos[1] > HEIGHT:
         return True
 
     return False
+
 
 def length(v):
     return np.linalg.norm(v)

@@ -19,13 +19,21 @@ class Z_World():
         self.player = pygame.sprite.Group()
         self.bullets = pygame.sprite.Group()
         self.screen = screen
+        self.health_count = 0
         self.see = False
+        self.showZHealth = False
+        self.zhealth_count = 0
+        self.wasted_logo = None
+        self.wasted_h = 0
+        self.wasted_w = 0
 
 
     def add_player(self, sprite):
         self.p = sprite
         self.player.add(self.p)
-
+        self.wasted_logo = pygame.image.load("dead_player/wasted.png")
+        self.wasted_w = self.wasted_logo.get_width()
+        self.wasted_h = self.wasted_logo.get_height()
 
     def add_zombie(self, sprite):
         self.zombies.add(sprite)
@@ -51,39 +59,65 @@ class Z_World():
         self.p.update()
 
         for z in self.zombies:
-            if np.fabs(length(z.pos - self.p.pos)) < 200:
-                u = normalize(self.p.pos - z.pos)
-                z.vel = z.V * u
-                z.seesPlayer = True
-            else:
-                z.seesPlayer = False
+            if z.alive:
+                # Player-Zombie collision
+                if np.fabs(length(z.pos - self.p.pos)) < 0.5 and self.p.alive:
+                    if self.health_count > 20:
+                        self.health_count = 0
+                        self.p.health -= 20
 
-            z.update()
-            z.b_vel = [0, 0]
+                    self.health_count += 1
 
+                    if self.p.health <= 0:
+                        self.p.image = pygame.image.load("dead_player/1.png")
+                        self.p.alive = False
+                        z.seesPlayer = False
+                        
+                elif np.fabs(length(z.pos - self.p.pos)) < 200:
+                    if self.p.alive:
+                        u = normalize(self.p.pos - z.pos)
+                        z.vel = z.V * u
+                        z.seesPlayer = True
+                else:
+                    z.seesPlayer = False
+
+                z.update()
+                z.b_vel = [0, 0]
 
         for b in self.bullets:
             if not b.shot:
                 b.shot = True
                 b.setup(self.p.pos, self.p.vel)
                 b.image = pygame.transform.rotate(b.image, self.p.angle)
-                
+
+            
+            # Zombie-Bullet collision
             for z in self.zombies:
-                if np.fabs(length(b.pos-z.pos)) < z.h / 2.0:
-                    z.b_vel = b.vel
-                    z.health -= 1
-                    b.kill()
+                if z.alive:
+                    if np.fabs(length(b.pos-z.pos)) < z.h / 2.0:
+                        b.kill()
+                        self.zhealth_count = 100
+                        self.showZHealth = True
+                        z.b_vel = b.vel
+                        z.health -= 20
 
-                    if z.health <= 0:
-                        z.kill()
+                        if z.health <= 0:
+                            z.alive = False
+                            z.image = pygame.image.load("dead_zombie/1.png")
+                            # z.kill()
 
-
-            b.update()
+            b.update()           
 
 
         self.draw_player()
         self.draw_bullets()
         self.draw_zombies()
+
+        if not self.p.alive:
+            self.screen.blit(self.wasted_logo, (WIDTH/2 - self.wasted_w/2, HEIGHT/2 - self.wasted_h/2))
+
+        pygame.draw.rect(self.screen, BLACK,(0, 0, 210, 40))
+        pygame.draw.rect(self.screen, GREEN,(5, 5, self.p.health, 30))
 
 
 # Clears and updates window screen
@@ -129,42 +163,43 @@ def main():
     while len(world.zombies) != 0:
         keys = pygame.key.get_pressed()
 
-        if keys[pygame.K_w] or keys[pygame.K_s]:
-            if keys[pygame.K_w]:
-                vel[1] = -1
+        if player.alive:
+            if keys[pygame.K_w] or keys[pygame.K_s]:
+                if keys[pygame.K_w]:
+                    vel[1] = -1
+                else:
+                    vel[1] = 1
             else:
-                vel[1] = 1
-        else:
-            vel[1] = 0
+                vel[1] = 0
 
-        if keys[pygame.K_a] or keys[pygame.K_d]:
-            if keys[pygame.K_a]:
-                vel[0] = -1
+            if keys[pygame.K_a] or keys[pygame.K_d]:
+                if keys[pygame.K_a]:
+                    vel[0] = -1
+                else:
+                    vel[0] = 1
             else:
-                vel[0] = 1
-        else:
-            vel[0] = 0
+                vel[0] = 0
 
-        for p in world.player:
-            p.set_vel(vel)
-            p.accel = np.multiply(vel, ACCEL)
+            player.set_vel(vel)
+            player.accel = np.multiply(vel, ACCEL)
 
 
-        if p.gun == "machine":
-            if keys[pygame.K_l]:
-                bullet = Bullet()
-                world.add_bullet(bullet)
+            if player.gun == "machine":
+                if keys[pygame.K_l]:
+                    bullet = Bullet()
+                    world.add_bullet(bullet)
+            elif player.gun == "pistol":
+                for event in pygame.event.get():
+                     if event.type == pygame.KEYDOWN and event.key == pygame.K_RCTRL:
+                        bullet = Bullet()
+                        world.add_bullet(bullet)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT or \
                event.type == pygame.KEYDOWN and event.key == pygame.K_q:
                 pygame.quit()
                 exit()
-            elif p.gun == "pistol" and \
-                 event.type == pygame.KEYDOWN and \
-                 event.key == pygame.K_RCTRL:
-                bullet = Bullet()
-                world.add_bullet(bullet)
+            
             
         update(screen, world, bg)
 

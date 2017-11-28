@@ -5,10 +5,10 @@ class Zombie(pygame.sprite.Sprite):
     def __init__(self, dt=0.5):
         pygame.sprite.Sprite.__init__(self)
         self.i = 0
-        self.pos_vec = np.array([0, -1])
         self.pos = np.array([0, 0])
-        self.vel = np.array([0, 0])
+        self.vel = np.array([0, 0]) # used for velocity direction when normalized
         self.angle = 0
+
         self.sprite_img = []
         self.image = None
         self.rect = None
@@ -21,12 +21,14 @@ class Zombie(pygame.sprite.Sprite):
         self.prob = WALK_PROB
         self.walks = []
         self.a = ACCEL
-        self.V = 3.0
+        self.V = 3.0 # velocity magnitude
         self.health = ZOMBIE_HEALTH
         self.seesPlayer = False
         self.h = 0.0
         self.w = 0.0
         self.b_vel = np.array([0, 0])
+        self.off = 0
+        self.alive = True
 
 
     def setup(self, vel=np.array([0, 0])):
@@ -94,7 +96,6 @@ class Zombie(pygame.sprite.Sprite):
     def set_pos(self, pos):
         if (np.fabs(self.vel[0]) > 0.4 or np.fabs(self.vel[1]) > 0.4) or self.seesPlayer:
             animate(self)
-
             rotate(self, pos)
 
         self.pos = pos
@@ -102,10 +103,10 @@ class Zombie(pygame.sprite.Sprite):
 
 
     def f(self, t, state):
-        dx = state[2] + self.b_vel[0]*0.5
+        dx = state[2] + self.b_vel[0]*0.05
         dvx = self.accel[0] - self.drag*state[2]
 
-        dy = state[3] + self.b_vel[1]*0.5
+        dy = state[3] + self.b_vel[1]*0.05
         dvy = self.accel[1] - self.drag*state[3]
 
         return [dx, dy, dvx, dvy]

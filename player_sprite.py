@@ -18,6 +18,8 @@ class Player(pygame.sprite.Sprite):
         self.solver = ode(self.f)
         self.solver.set_integrator('dop853')
         self.drag = 0.03
+        self.health = HUMAN_HEALTH
+        self.alive = True
 
 
     def setup(self, pos, vel=np.array([0, 0])):
