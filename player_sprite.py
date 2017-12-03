@@ -35,6 +35,10 @@ class Player(pygame.sprite.Sprite):
 
         self.alive = True
 
+        self.flesh_rip = pygame.mixer.Sound('sound_fx/flesh_rip.wav')
+        self.flesh_rip.set_volume(0.3)
+        self.wasted = pygame.mixer.Sound('sound_fx/wasted.wav')
+
     def setup(self, pos=np.array([0, 0]), vel=np.array([0, 0])):
         for img_name in os.listdir("player/"):
             self.sprite_img.append(os.path.join("player", img_name))
@@ -57,10 +61,23 @@ class Player(pygame.sprite.Sprite):
 
     def set_dir(self, direction):
         self.dir = direction
-        # rotate_dir(self, self.dir)
 
     def set_acc(self, mag_acc=PLAYER_ACCELERATION):
         self.acc = np.multiply(self.dir, mag_acc)
+
+
+    def dec_health(self):
+        self.health -= 5
+
+        if self.health <= 0:
+            self.alive = False
+            self.image = pygame.image.load("dead_player/1.png")
+
+            if pygame.mixer.music.get_busy():
+                stop_music(0)
+            self.wasted.play()
+        else:
+            self.flesh_rip.play()
 
     def f(self, t, state):
         dx = state[2]
@@ -72,12 +89,13 @@ class Player(pygame.sprite.Sprite):
         return [dx, dy, dvx, dvy]
 
     def update(self):
-        self.curr_time += self.dt
-        if self.solver.successful():
+        if self.alive:
+            self.curr_time += self.dt
+            if self.solver.successful():
 
-            self.solver.integrate(self.curr_time)
-            pos = self.solver.y[0:2]
-            self.vel = self.solver.y[2:4]
+                self.solver.integrate(self.curr_time)
+                pos = self.solver.y[0:2]
+                self.vel = self.solver.y[2:4]
 
-            pos = check_boundary(self, pos)
-            self.set_pos(pos)
+                pos = check_boundary(self, pos)
+                self.set_pos(pos)

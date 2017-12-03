@@ -38,6 +38,13 @@ def animate(sprite):
     # sprite.image = pygame.transform.rotate(sprite.image, sprite.angle)
     sprite.rect = sprite.image.get_rect()
 
+def animate_with(sprite, imgs):
+    sprite.i += 1
+    sprite.image = pygame.image.load(imgs[sprite.i % len(imgs)])
+
+    # sprite.image = pygame.transform.rotate(sprite.image, sprite.angle)
+    sprite.rect = sprite.image.get_rect()
+
 
 def check_boundary(sprite, pos):
     if pos[0] > WIDTH:

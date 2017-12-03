@@ -15,6 +15,7 @@ class Zombie(pygame.sprite.Sprite):
 
         self.i = 0
         self.sprite_img = []
+        self.bite_img = []
         self.image = None
         self.rect = None
         self.angle = 0
@@ -45,10 +46,16 @@ class Zombie(pygame.sprite.Sprite):
         self.alive = True
         self.alert = True
 
+        self.flesh_hit = pygame.mixer.Sound('sound_fx/bullet_flesh.wav')
+        self.flesh_hit.set_volume(0.3)
+        self.biting = False
+
     def setup(self):
         for img_name in os.listdir("zombie/"):
             self.sprite_img.append(os.path.join("zombie", img_name))
 
+        for img_name in os.listdir("zombie_biting/"):
+            self.bite_img.append(os.path.join("zombie_biting", img_name))
 
         self.image = pygame.image.load(self.sprite_img[0])
         self.image = pygame.transform.scale(self.image, (self.dimen, self.dimen))
@@ -75,9 +82,9 @@ class Zombie(pygame.sprite.Sprite):
         self.dir = self.walks[random.randint(0, len(self.walks))]
 
         direction = self.random_walk()
-        self.set_pos(self.pos, direction)
-        self.set_vel(direction)
-        self.set_acc(direction)
+        self.set_pos(self.pos)
+        self.set_vel()
+        self.set_acc()
         self.solver.set_initial_value([self.pos[0], \
                                        self.pos[1], \
                                        self.vel[0], \
@@ -101,72 +108,78 @@ class Zombie(pygame.sprite.Sprite):
 
         return direction
 
-        # self.dir_acc = self.dir_vel
-        # self.acc = np.multiply(self.dir_acc, self.mag_acc)
 
-
-    def set_pos(self, pos, direction):
+    def set_pos(self, pos):
         if np.fabs(self.vel[0]) > 0.1 or np.fabs(self.vel[1]) > 0.1:
-            animate(self)
-            rotate(self, normalize(self.vel))
+            if not self.biting:
+                animate(self)
+            else:
+                animate_with(self, self.bite_img)
+            rotate_dir(self, self.dir)
 
         self.pos = pos
         self.rect = self.pos
 
-    def set_vel(self, direction):
-        self.vel = np.multiply(direction, self.mag_vel)
+    def set_vel(self):
+        self.vel = np.multiply(self.dir, self.mag_vel)
 
-    def set_acc(self, direction):
-        self.acc = np.multiply(direction, self.mag_acc)
+    def set_acc(self):
+        self.acc = np.multiply(self.dir, self.mag_acc)
 
-    def set_bullet(self, vel=np.array([0, 0]), mass=0.0):
-        self.bull_vel = vel
-        self.bull_mass = mass
+    def set_bullet(self, bullet=None):
+        if bullet==None:
+            self.bull_vel = np.array([0, 0])
+            self.bull_mass = 0.0
+        else:
+            self.bull_vel = normalize(bullet.vel)*bullet.mag_vel*10
+            self.bull_mass = bullet.mass
 
     def set_towards_player(self, player):
-        u = normalize(player.pos - self.pos)
-        self.set_pos(self.pos, u)
-        self.mag_acc *= 2.0
-        self.set_acc(u)
-        self.mag_acc /= 2.0
-        rotate_dir(self, u)
         self.seesPlayer = True
+        self.dir = normalize((player.pos + player.dimen/2) - (self.pos + self.dimen/2))
+        self.set_pos(self.pos)
+        self.mag_acc *= 2.0
+        self.set_acc()
+        self.mag_acc /= 2.0
 
+    def dec_health(self, damage):
+        self.flesh_hit.play()
+        self.health -= damage
+
+        if self.health <= 0:
+            self.alive = False
+            self.image = pygame.image.load("dead_zombie/1.png")
 
     def f(self, t, state):
-        dx = (state[2]*self.mass + self.bull_vel[0]*self.bull_mass)/(self.mass + self.bull_mass)
-        dvx = self.acc[0] - self.drag*state[2]
-
-        dy = (state[3]*self.mass + self.bull_vel[1]*self.bull_mass)/(self.mass + self.bull_mass)
-        dvy = self.acc[1] - self.drag*state[3]
+        dx, dy = (state[2:4]*self.mass + 10*self.bull_vel*self.bull_mass)/(self.mass + self.bull_mass)
+        dvx, dvy = self.acc - self.drag*state[2:4]
 
         return [dx, dy, dvx, dvy]
 
 
     def update(self):
+        if self.alive:
+            if not self.seesPlayer:
+                self.dir = self.random_walk()
+                self.set_acc()
 
-        if not self.seesPlayer:
-            direction = self.random_walk()
-            self.dir = direction
-            self.set_acc(direction)
-        else:
-            direction = self.dir
+            if not self.biting or self.bull_mass != 0.0:
+                self.curr_time += self.dt
+                if self.solver.successful():
 
-        self.curr_time += self.dt
-        if self.solver.successful():
+                    self.solver.integrate(self.curr_time)
+                    pos = self.solver.y[0:2]
+                    self.vel = self.solver.y[2:4]
+                    self.dir = normalize(self.vel)
 
-            self.solver.integrate(self.curr_time)
-            pos = self.solver.y[0:2]
-            self.vel = self.solver.y[2:4]
-
-            pos = check_boundary(self, pos)
+                    pos = check_boundary(self, pos)
 
 
-            self.set_pos(pos, direction)
+                    self.set_pos(pos)
 
             if (self.bull_mass != 0.0):
                 self.i += 1
 
-                if self.i > 100:
+                if self.i > 50:
                     self.i  = 0
                     self.set_bullet()

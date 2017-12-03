@@ -1,13 +1,12 @@
 from util import *
 
 
-GUN_CONFIG = {"pistol" : [150, 1.0, 10], "machine" : [200, 2.0, 15], "shotgun" : [200, 10.0, 5]}
+GUN_CONFIG = {"pistol" : [15, 1.0, 10, 10], "machine" : [10, 2.0, 15, 1], "shotgun" : [10, 10.0, 10, 10 ]}
 
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, dt=0.2):
         pygame.sprite.Sprite.__init__(self)
         self.i = 0
-        self.pos_vec = np.array([0, -1])
         self.pos = np.array([0,0])
         self.vel = np.array([0,0])
         self.angle = 0
@@ -24,15 +23,28 @@ class Bullet(pygame.sprite.Sprite):
         self.shot = False
         self.type = "pistol"
         self.mass = 1.0
-        self.fact = 10
         self.gun_config = GUN_CONFIG.get(self.type)
+        self.sound = None
+        self.damage = 0
+        self.dist = 0.0
 
     def setup(self, pos, vel=np.array([0, 0])):
         img_name = "bullet/" + self.type + ".png"
+        self.gun_config = GUN_CONFIG.get(self.type)
         self.image = pygame.image.load(img_name)
         self.image = pygame.transform.scale(self.image, (int(self.gun_config[2]), int(self.gun_config[2])))
-
         self.rect = self.image.get_rect()
+        self.sound = pygame.mixer.Sound("sound_fx/" + self.type + ".wav")
+
+        if (self.type == "pistol"):
+            self.sound.set_volume(0.1)
+        elif (self.type == "machine"):
+            self.sound.set_volume(0.01)
+        elif (self.type == "shotgun"):
+            self.sound.set_volume(0.9)
+        self.sound.play()
+
+        self.damage = self.gun_config[3]
         self.mag_vel = self.gun_config[0]
         self.mass = self.gun_config[1]
         self.set_vel(normalize(vel))
@@ -69,7 +81,14 @@ class Bullet(pygame.sprite.Sprite):
             pos = self.solver.y[0:2]
             self.vel = self.solver.y[2:4]
 
+            if self.type == "shotgun":
+                self.dist += length(self.pos - pos)
+                if self.dist >= 200.0:
+                    self.kill()
+
+
             if not out_of_bounds(pos):
                 self.set_pos(pos)
             else:
                 self.kill()
+
