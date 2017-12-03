@@ -1,7 +1,7 @@
 from util import *
 
 
-GUN_CONFIG = {"pistol" : [15, 1.0, 10, 10], "machine" : [10, 2.0, 15, 1], "shotgun" : [10, 10.0, 10, 10 ]}
+GUN_CONFIG = {"pistol" : [15, 1.0, 10, 10], "machine" : [10, 2.0, 15, 1], "shotgun" : [10, 10.0, 15, 33]}
 
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, dt=0.2):
@@ -39,7 +39,7 @@ class Bullet(pygame.sprite.Sprite):
         if (self.type == "pistol"):
             self.sound.set_volume(0.1)
         elif (self.type == "machine"):
-            self.sound.set_volume(0.01)
+            self.sound.set_volume(0.05)
         elif (self.type == "shotgun"):
             self.sound.set_volume(0.9)
         self.sound.play()

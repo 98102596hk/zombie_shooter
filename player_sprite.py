@@ -38,6 +38,8 @@ class Player(pygame.sprite.Sprite):
         self.flesh_rip = pygame.mixer.Sound('sound_fx/flesh_rip.wav')
         self.flesh_rip.set_volume(0.3)
         self.wasted = pygame.mixer.Sound('sound_fx/wasted.wav')
+        self.step = pygame.mixer.Sound('sound_fx/step.wav')
+        self.step.set_volume(0.08)
 
     def setup(self, pos=np.array([0, 0]), vel=np.array([0, 0])):
         for img_name in os.listdir("player/"):
@@ -52,10 +54,16 @@ class Player(pygame.sprite.Sprite):
         self.solver.set_initial_value([self.pos[0], self.pos[1], self.vel[0], self.vel[1]], self.curr_time)
 
     def set_pos(self, pos):
-        if np.fabs(self.vel[0]) > 0.1 or np.fabs(self.vel[1]) > 0.1:
+        if length(self.acc) != 0 and (np.fabs(self.vel[0]) > 0.1 or np.fabs(self.vel[1]) > 0.1):
             animate(self)
             rotate_dir(self, normalize(self.vel))
-            
+
+            if self.i > 20:
+                self.i  = 0
+                self.step.play()
+        
+
+        self.i += 1
         self.pos = pos
         self.rect = self.pos
 

@@ -55,7 +55,14 @@ class Z_World():
 
 
     def draw_zombies(self):
-        self.zombies.draw(self.screen)
+        group = pygame.sprite.Group()
+        for z in self.zombies:
+            if not z.alive:
+                z.draw(self.screen)
+            else:
+                group.add(z)
+
+        group.draw(self.screen)
     
 
     def draw_bullets(self):
@@ -73,6 +80,13 @@ class Z_World():
                     # Zombie near player
                     dist = length((self.p.pos + self.p.dimen/2) - (z.pos + z.dimen/2))
                     if dist < 200:
+                        z.set_towards_player(self.p)    
+                        if z.alert and not pygame.mixer.music.get_busy():
+                            z.alert = False
+                            self.alert_sound.stop()
+                            self.alert_sound.play()
+                            play_music()
+
                         # Player-Zombie collision
                         if dist <= (z.dimen/2 + self.p.dimen/2 - 10):
                             z.biting = True
@@ -80,21 +94,21 @@ class Z_World():
                             if self.health_count > 50:
                                 self.health_count = 0
                                 self.p.dec_health()
+
+                                if not self.p.alive:
+                                    rotate(self.p, z.pos)
                         else:
                             z.biting = False
-
-                        z.set_towards_player(self.p)    
-                        if z.alert and not pygame.mixer.music.get_busy():
-                            z.alert = False
-                            self.alert_sound.stop()
-                            self.alert_sound.play()
-                            play_music()
                     else:
                         z.alert = True
                         z.seesPlayer = False
 
                     self.alert = self.alert and z.alert
-
+                else:
+                    if z.seesPlayer:
+                        z.seesPlayer = False
+                        z.biting = False
+            
             z.update()
 
 
@@ -128,9 +142,15 @@ class Z_World():
                 b.update()           
 
 
-        self.draw_player()
+        
         self.draw_bullets()
-        self.draw_zombies()
+
+        if self.p.alive:
+            self.draw_zombies()
+            self.draw_player()
+        else:
+            self.draw_player()
+            self.draw_zombies()
 
         if not self.p.alive:
             self.screen.blit(self.wasted_logo, (WIDTH/2 - self.wasted_w/2, HEIGHT/2 - self.wasted_h/2))
@@ -183,6 +203,8 @@ def main():
     the_end = False
     count = 0
     gun_count = 30
+    j = 0
+    lag = 20
     # -------- Main Program Loop -----------
     while len(world.zombies) != 0:
         keys = pygame.key.get_pressed()
@@ -196,35 +218,40 @@ def main():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_1:
                     player.gun = "pistol"
+                    lag = 20
+                    j = 0
                 elif event.key == pygame.K_2:
                     player.gun = "machine"
+                    lag = 5
+                    j = 0
                 elif event.key == pygame.K_3:
                     player.gun = "shotgun"
-                elif event.key == pygame.K_RCTRL:
-                    if player.gun != "machine":
-                        bullet = Bullet()
-                        world.add_bullet(bullet)
+                    lag = 50
+                    j = 0
                 elif event.key == pygame.K_p:
                     paused = True
                 elif event.key == pygame.K_r:
                     paused = False
 
-        if player.gun == "machine":
-            if keys[pygame.K_RCTRL]:
+
+        if keys[pygame.K_RCTRL] or keys[pygame.K_LCTRL]:
+            if j <= 0:
+                j = lag
                 bullet = Bullet()
                 world.add_bullet(bullet)
+        j -= 1
 
         if player.alive:
-            if keys[pygame.K_w] or keys[pygame.K_s]:
-                if keys[pygame.K_w]:
+            if keys[pygame.K_w] or keys[pygame.K_s] or keys[pygame.K_UP] or keys[pygame.K_DOWN]:
+                if keys[pygame.K_w] or keys[pygame.K_UP]:
                     direction[1] = -1
                 else:
                     direction[1] = 1
             else:
                 direction[1] = 0
 
-            if keys[pygame.K_a] or keys[pygame.K_d]:
-                if keys[pygame.K_a]:
+            if keys[pygame.K_a] or keys[pygame.K_d] or keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]:
+                if keys[pygame.K_a] or keys[pygame.K_LEFT]:
                     direction[0] = -1
                 else:
                     direction[0] = 1
@@ -244,6 +271,7 @@ def main():
           
         if not paused:  
             update(screen, world, bg)
+
 
 if __name__ == '__main__':
     main()

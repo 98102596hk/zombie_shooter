@@ -50,6 +50,9 @@ class Zombie(pygame.sprite.Sprite):
         self.flesh_hit.set_volume(0.3)
         self.biting = False
 
+    def draw(self, screen):
+        screen.blit(self.image, self.rect)
+        
     def setup(self):
         for img_name in os.listdir("zombie/"):
             self.sprite_img.append(os.path.join("zombie", img_name))
@@ -89,7 +92,6 @@ class Zombie(pygame.sprite.Sprite):
                                        self.pos[1], \
                                        self.vel[0], \
                                        self.vel[1]], self.curr_time)
-
 
     def random_walk(self):
         continue_random = random.uniform(0, 1)
