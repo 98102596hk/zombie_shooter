@@ -1,45 +1,57 @@
 from util import *
 
+ZOMBIE_VELOCITY = 3.0
+ZOMBIE_ACCELERATION = 2.0
+ZOMBIE_MASS = 180
+ZOMBIE_DRAG = 0.9
+ZOMBIE_DIMEN = 30
+ZOMBIE_HEALTH = 100
+
+WALK_PROB = [0.125] * 8
 
 class Zombie(pygame.sprite.Sprite):
     def __init__(self, dt=0.5):
         pygame.sprite.Sprite.__init__(self)
-        self.i = 0
-        self.pos = np.array([0, 0])
-        self.vel = np.array([0, 0]) # used for velocity direction when normalized
-        self.angle = 0
 
+        self.i = 0
         self.sprite_img = []
         self.image = None
         self.rect = None
+        self.angle = 0
+        self.dimen = ZOMBIE_DIMEN
+
         self.curr_time = 0
         self.dt = dt
-        self.accel = np.array([0, 0])
+        self.pos = np.array([0, 0])
+        self.vel = np.array([0, 0])
+        self.mag_vel = ZOMBIE_VELOCITY
+        self.acc = np.array([0, 0])
+        self.mag_acc = ZOMBIE_ACCELERATION
+        self.dir = np.array([0, 0])
+        self.bull_vel = np.array([0, 0])
+        self.bull_mass = 0.0
+
+        self.mass = ZOMBIE_MASS
+        self.drag = ZOMBIE_DRAG
+        self.health = ZOMBIE_HEALTH
+
         self.solver = ode(self.f)
         self.solver.set_integrator('dop853')
-        self.drag = 0.3
-        self.prob = WALK_PROB
+
         self.walks = []
-        self.a = ACCEL
-        self.V = 3.0 # velocity magnitude
-        self.health = ZOMBIE_HEALTH
+        self.walk_prob = WALK_PROB
+
         self.seesPlayer = False
-        self.h = 0.0
-        self.w = 0.0
-        self.b_vel = np.array([0, 0])
-        self.off = 0
         self.alive = True
         self.alert = True
 
-    def setup(self, vel=np.array([0, 0])):
+    def setup(self):
         for img_name in os.listdir("zombie/"):
             self.sprite_img.append(os.path.join("zombie", img_name))
 
 
         self.image = pygame.image.load(self.sprite_img[0])
-        self.image = pygame.transform.scale(self.image, (int(30), int(60)))
-        self.h = self.image.get_height()
-        self.w = self.image.get_width()
+        self.image = pygame.transform.scale(self.image, (self.dimen, self.dimen))
         self.rect = self.image.get_rect()
 
         '''
@@ -60,10 +72,12 @@ class Zombie(pygame.sprite.Sprite):
         self.pos[1] = random.choice([random.randint(0, 100), \
                                      random.randint(HEIGHT-100, HEIGHT)])
 
-        self.vel = self.random_walk()
-        self.accel = np.multiply(self.vel, ACCEL)
+        self.dir = self.walks[random.randint(0, len(self.walks))]
 
-        self.set_pos(self.pos)
+        direction = self.random_walk()
+        self.set_pos(self.pos, direction)
+        self.set_vel(direction)
+        self.set_acc(direction)
         self.solver.set_initial_value([self.pos[0], \
                                        self.pos[1], \
                                        self.vel[0], \
@@ -73,47 +87,70 @@ class Zombie(pygame.sprite.Sprite):
     def random_walk(self):
         continue_random = random.uniform(0, 1)
 
-        if continue_random < 0.05 and not self.seesPlayer:
+        direction = self.dir
+        if continue_random < 0.05:
             rand_choice = random.uniform(0, 1)
-            cum_prob = np.cumsum(self.prob)
+            cum_prob = np.cumsum(self.walk_prob)
 
-            vel = np.array([-1, -1])
-
-            for i in range(0, len(cum_prob)-1):
-                if rand_choice <= cum_prob[i]:
-                    vel = self.walks[i]
+            for i in range(0, len(cum_prob)):
+                if rand_choice < cum_prob[i]:
+                    direction = self.walks[i]
                     break
 
-            vel = np.multiply(normalize(vel), self.V)
-        else:
-            vel = self.vel
+            direction = normalize(direction)
 
-        self.accel = np.multiply(vel, self.a)
+        return direction
 
-        return vel
+        # self.dir_acc = self.dir_vel
+        # self.acc = np.multiply(self.dir_acc, self.mag_acc)
 
 
-    def set_pos(self, pos):
-        if (np.fabs(self.vel[0]) > 0.4 or np.fabs(self.vel[1]) > 0.4) or self.seesPlayer:
+    def set_pos(self, pos, direction):
+        if np.fabs(self.vel[0]) > 0.1 or np.fabs(self.vel[1]) > 0.1:
             animate(self)
-            rotate(self, pos)
+            rotate(self, normalize(self.vel))
 
         self.pos = pos
         self.rect = self.pos
 
+    def set_vel(self, direction):
+        self.vel = np.multiply(direction, self.mag_vel)
+
+    def set_acc(self, direction):
+        self.acc = np.multiply(direction, self.mag_acc)
+
+    def set_bullet(self, vel=np.array([0, 0]), mass=0.0):
+        self.bull_vel = vel
+        self.bull_mass = mass
+
+    def set_towards_player(self, player):
+        u = normalize(player.pos - self.pos)
+        self.set_pos(self.pos, u)
+        self.mag_acc *= 2.0
+        self.set_acc(u)
+        self.mag_acc /= 2.0
+        rotate_dir(self, u)
+        self.seesPlayer = True
+
 
     def f(self, t, state):
-        dx = state[2] + self.b_vel[0]*0.05
-        dvx = self.accel[0] - self.drag*state[2]
+        dx = (state[2]*self.mass + self.bull_vel[0]*self.bull_mass)/(self.mass + self.bull_mass)
+        dvx = self.acc[0] - self.drag*state[2]
 
-        dy = state[3] + self.b_vel[1]*0.05
-        dvy = self.accel[1] - self.drag*state[3]
+        dy = (state[3]*self.mass + self.bull_vel[1]*self.bull_mass)/(self.mass + self.bull_mass)
+        dvy = self.acc[1] - self.drag*state[3]
 
         return [dx, dy, dvx, dvy]
 
 
     def update(self):
-        self.vel = self.random_walk()
+
+        if not self.seesPlayer:
+            direction = self.random_walk()
+            self.dir = direction
+            self.set_acc(direction)
+        else:
+            direction = self.dir
 
         self.curr_time += self.dt
         if self.solver.successful():
@@ -122,6 +159,14 @@ class Zombie(pygame.sprite.Sprite):
             pos = self.solver.y[0:2]
             self.vel = self.solver.y[2:4]
 
-            pos = check_boundary(pos)
+            pos = check_boundary(self, pos)
 
-            self.set_pos(pos)
+
+            self.set_pos(pos, direction)
+
+            if (self.bull_mass != 0.0):
+                self.i += 1
+
+                if self.i > 100:
+                    self.i  = 0
+                    self.set_bullet()

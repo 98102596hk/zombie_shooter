@@ -69,9 +69,9 @@ class Z_World():
 
         self.alert = True
         for z in self.zombies:
-            if z.alive:
+            if z.alive and self.p.alive:
                 # Player-Zombie collision
-                if np.fabs(length(z.pos - self.p.pos)) < self.p.h and self.p.alive:
+                if np.fabs(length(z.pos - self.p.pos)) <= (z.dimen/2 + self.p.dimen/2):
                     if self.health_count > 50:
                         self.health_count = 0
                         self.p.health -= 20
@@ -89,16 +89,15 @@ class Z_World():
 
                         
                 # Zombie near player
-                if np.fabs(length(z.pos - self.p.pos)) < 200:
+                if np.fabs(length(z.pos - self.p.pos)) < 500:
                     if self.p.alive:
                         if z.alert and not pygame.mixer.music.get_busy():
                             z.alert = False
                             self.alert_sound.play()
                             play_music()
 
-                        u = normalize(self.p.pos - z.pos)
-                        z.vel = z.V * u
-                        z.seesPlayer = True
+                        if not z.alert:
+                            z.set_towards_player(self.p)
                 else:
                     z.alert = True
                     z.seesPlayer = False
@@ -117,19 +116,20 @@ class Z_World():
                 b.shot = True
                 b.type = self.p.gun
 
-                b.setup([self.p.pos[0] + self.p.w/2, self.p.pos[1]], self.p.vel)
+
+                b.setup([self.p.pos[0] + self.p.dimen/2, self.p.pos[1] + self.p.dimen/2], self.p.vel)
                 b.image = pygame.transform.rotate(b.image, self.p.angle)
 
             
             # Zombie-Bullet collision
             for z in self.zombies:
                 if z.alive:
-                    if np.fabs(length(b.pos - z.pos)) < z.h / 2.0:
+                    if np.fabs(length(b.pos - z.pos)) <= z.dimen*2:
                         self.flesh_hit.play()
                         b.kill()
                         self.zhealth_count = 100
                         self.showZHealth = True
-                        z.b_vel = b.vel
+                        z.set_bullet(b.vel, b.mass) 
                         z.health -= 20
 
                         if z.health <= 0:
@@ -190,7 +190,7 @@ def main():
     machine.set_volume(0.02)
 
     paused = False
-    vel = np.array([0, 0])
+    direction = np.array([0, 0])
     world.draw_player()
     the_end = False
     count = 0
@@ -208,15 +208,16 @@ def main():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_1:
                     player.gun = "pistol"
-                    gun_count = 30
                 elif event.key == pygame.K_2:
                     player.gun = "machine"
-                    gun_count = 0
+                elif event.key == pygame.K_3:
+                    player.gun = "shotgun"
                 elif event.key == pygame.K_RCTRL:
-                    if player.gun == "pistol":
+                    if player.gun != "machine":
                         bullet = Bullet()
                         world.add_bullet(bullet)
-                        pistol.play()
+                        if player.gun == "pistol":
+                            pistol.play()
                 elif event.key == pygame.K_p:
                     paused = True
                 elif event.key == pygame.K_r:
@@ -231,22 +232,26 @@ def main():
         if player.alive:
             if keys[pygame.K_w] or keys[pygame.K_s]:
                 if keys[pygame.K_w]:
-                    vel[1] = -1
+                    direction[1] = -1
                 else:
-                    vel[1] = 1
+                    direction[1] = 1
             else:
-                vel[1] = 0
+                direction[1] = 0
 
             if keys[pygame.K_a] or keys[pygame.K_d]:
                 if keys[pygame.K_a]:
-                    vel[0] = -1
+                    direction[0] = -1
                 else:
-                    vel[0] = 1
+                    direction[0] = 1
             else:
-                vel[0] = 0
+                direction[0] = 0
 
-            player.set_vel(vel)
-            player.accel = np.multiply(vel, ACCEL)        
+            direction = normalize(direction)
+            if (length(direction) > 0):
+                player.set_dir(direction)
+                player.set_acc()
+            else:
+                player.set_acc(0.0)  
         else:
             if not the_end:
                 the_end = True

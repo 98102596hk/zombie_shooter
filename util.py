@@ -15,9 +15,6 @@ ACCEL = 0.3
 WIDTH = 1080
 HEIGHT = 600
 
-WALK_PROB = [0.125] * 8
-ZOMBIE_HEALTH = 100
-HUMAN_HEALTH = 200
 
 
 def rotate(sprite, pos):
@@ -25,25 +22,33 @@ def rotate(sprite, pos):
                    (sprite.rect[0] - pos[0], sprite.rect[1] - pos[1]))
     
     sprite.image = pygame.transform.rotate(sprite.image, sprite.angle)
-    sprite.rect = sprite.image.get_rect()
 
+
+def rotate_dir(sprite, direction):
+    sprite.angle = 270 - np.degrees(np.arctan2\
+                   (direction[1], direction[0]))
+
+    sprite.image = pygame.transform.rotate(sprite.image, sprite.angle)
 
 def animate(sprite):
     sprite.i += 1
     sprite.image = pygame.image.load\
                    (sprite.sprite_img[sprite.i % len(sprite.sprite_img)])
 
+    # sprite.image = pygame.transform.rotate(sprite.image, sprite.angle)
+    sprite.rect = sprite.image.get_rect()
 
-def check_boundary(pos):
+
+def check_boundary(sprite, pos):
     if pos[0] > WIDTH:
         pos[0] = pos[0] - WIDTH
-    elif pos[0] < 0:
-        pos[0] = WIDTH - pos[0]
+    elif (pos[0] + sprite.dimen) < 0:
+        pos[0] = WIDTH + pos[0]
 
     if pos[1] > HEIGHT:
         pos[1] = pos[1] - HEIGHT
-    elif pos[1] < 0:
-        pos[1] = HEIGHT - pos[1]
+    elif (pos[1] + sprite.dimen) < 0:
+        pos[1] = HEIGHT + pos[1]
 
     return pos
 
