@@ -4,6 +4,19 @@ from numpy import random
 import math
 from scipy.integrate import ode
 
+sys.path.append("sprites/zombie")
+sys.path.append("sprites/player")
+sys.path.append("sprites/bullet")
+
+# Constants setup
+BG_IMG_DIR = "media/bg_img/" 
+PLAYER_SPRITE_DIR = "sprites/player/sprite_imgs/"
+ZOMBIE_SPRITE_DIR = "sprites/zombie/sprite_imgs/"
+BULLET_SPRITE_DIR = "sprites/bullet/sprite_imgs/"
+
+SOUND_FX_DIR = "media/sound_fx/"
+BG_MUSIC = "media/bg_music/theme.mp3"
+
 # set up the colors
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -11,10 +24,8 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 
 ACCEL = 0.3
-
 WIDTH = 1080
 HEIGHT = 600
-
 
 
 def rotate(sprite, pos):
@@ -78,7 +89,7 @@ def normalize(v):
         return v
 
 def play_music():
-    pygame.mixer.music.load('bg_music/theme.mp3')
+    pygame.mixer.music.load(BG_MUSIC)
     pygame.mixer.music.play()
 
 def stop_music(fade=2000):

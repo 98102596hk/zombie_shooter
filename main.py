@@ -4,20 +4,31 @@ from player_sprite import *
 from bullet_sprite import *
 
 
+# Constants setup
+TITLE = "Z WORLD SURVIVAL"
+
+BG_IMG      = BG_IMG_DIR + "bg.png"
+BG_DEAD_IMG = BG_IMG_DIR + "bg_dead.png"
+WASTED_LOGO = BG_IMG_DIR + "wasted.png"
+
+FX_ALERT = SOUND_FX_DIR + "alert/wav"
+
+NUM_ZOMBIES = 5
+NUM_LEVELS = 5
+
+
 class Background(pygame.sprite.Sprite):
-    def __init__(self, image="bg.png"):
+    def __init__(self, image=BG_IMG):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.image.load(image)
         self.image = pygame.transform.scale(self.image, (int(WIDTH), int(HEIGHT)))
         self.rect = self.image.get_rect()
-
 
 class Z_World():
     def __init__(self, screen):
         self.i = 0
         self.p = pygame.sprite.Sprite
         self.zombies = pygame.sprite.Group()
-        self.player = pygame.sprite.Group()
         self.bullets = pygame.sprite.Group()
         self.screen = screen
 
@@ -31,18 +42,18 @@ class Z_World():
         self.alert = True
         self.zombieShot = False
         self.zombie_health = 100
+        self.z_count = 0
 
-        self.alert_sound = pygame.mixer.Sound('sound_fx/alert.wav')
-
+        self.wasted_logo = pygame.image.load(WASTED_LOGO)
+        self.wasted_w = self.wasted_logo.get_width()
+        self.wasted_h = self.wasted_logo.get_height()
+        self.alert_sound = pygame.mixer.Sound(FX_ALERT)
 
     def add_player(self, sprite):
         self.p = sprite
-        self.player.add(self.p)
-        self.wasted_logo = pygame.image.load("dead_player/wasted.png")
-        self.wasted_w = self.wasted_logo.get_width()
-        self.wasted_h = self.wasted_logo.get_height()
 
     def add_zombie(self, sprite):
+        self.z_count += 1
         self.zombies.add(sprite)
 
 
@@ -51,7 +62,7 @@ class Z_World():
 
 
     def draw_player(self):
-        self.player.draw(self.screen)
+        self.p.draw(self.screen)
 
 
     def draw_zombies(self):
@@ -83,7 +94,6 @@ class Z_World():
                         z.set_towards_player(self.p)    
                         if z.alert and not pygame.mixer.music.get_busy():
                             z.alert = False
-                            self.alert_sound.stop()
                             self.alert_sound.play()
                             play_music()
 
@@ -134,6 +144,7 @@ class Z_World():
 
                         if not z.alive:
                             rotate(z, self.p.pos)
+                            self.z_count -= 1
 
                         self.zombie_health = z.health
                         self.zombieShot = True
@@ -170,52 +181,68 @@ def update(screen, world, bg):
     pygame.display.update()
 
 
-def main():
-    # Initialize Pygame
-    pygame.init()
-    pygame.mixer.init()
-    pygame.display.set_caption("Z World Survival")
-    bg = Background()
-    # Set the height and width of the screen
-    screen_width = WIDTH
-    screen_height = HEIGHT
-    screen = pygame.display.set_mode([screen_width, screen_height])
-     
-    # Used to manage how fast the screen updates
-    clock = pygame.time.Clock()
 
-
-    world = Z_World(screen)
-
+def reset_world(world):
+    # Add player to zombie world and position in the center of the screen
     player = Player()
-    player.setup([screen_width / 2, screen_height / 2])
+    player.setup([WIDTH / 2 - player.dimen / 2, HEIGHT / 2 - player.dimen / 2])
     world.add_player(player)
 
-    for i in range(5):
+    for z in world.zombies:
+        z.kill()
+        del z
+
+    num = world.i + NUM_ZOMBIES
+    world.i += 1
+    setup_zombies(world, num)
+
+    return player
+
+
+# Creates number of zombies defined by num
+def setup_zombies(world, num=NUM_ZOMBIES):
+    for i in range(num):
         zombie = Zombie()
         zombie.setup()
         world.add_zombie(zombie)
 
 
-    paused = False
-    direction = np.array([0, 0])
-    world.draw_player()
-    the_end = False
-    count = 0
-    gun_count = 30
-    j = 0
-    lag = 20
-    # -------- Main Program Loop -----------
-    while len(world.zombies) != 0:
-        keys = pygame.key.get_pressed()
+def main():
+    # Initialize Pygame
+    pygame.init()
+    pygame.mixer.init()
+    pygame.display.set_caption(TITLE)
+    bg = Background()
 
+    # Set the height and width of the screen
+    screen = pygame.display.set_mode([WIDTH, HEIGHT])
+    clock = pygame.time.Clock()
+    world = Z_World(screen)
+
+    paused = False
+    the_end = False
+
+    direction = np.array([0, 0])
+
+    # used for gun reload lag
+    j = 0 
+    lag = 20
+
+    # -------- Main Program Loop -----------
+    while True:
+        if world.z_count <= 0 and world.i < NUM_LEVELS:
+            player = reset_world(world)
+
+        keys = pygame.key.get_pressed()
         for event in pygame.event.get():
+            # Handle quitting game
             if event.type == pygame.QUIT or \
                event.type == pygame.KEYDOWN and event.key == pygame.K_q:
                 pygame.quit()
                 exit()
 
             if event.type == pygame.KEYDOWN:
+                # Gun choice
                 if event.key == pygame.K_1:
                     player.gun = "pistol"
                     lag = 20
@@ -228,12 +255,16 @@ def main():
                     player.gun = "shotgun"
                     lag = 50
                     j = 0
+
+                # Pause game
                 elif event.key == pygame.K_p:
                     paused = True
+
+                # Resume game
                 elif event.key == pygame.K_r:
                     paused = False
 
-
+        # Handle shooting
         if keys[pygame.K_RCTRL] or keys[pygame.K_LCTRL]:
             if j <= 0:
                 j = lag
@@ -241,7 +272,9 @@ def main():
                 world.add_bullet(bullet)
         j -= 1
 
+
         if player.alive:
+            # Sets player direction based on user input
             if keys[pygame.K_w] or keys[pygame.K_s] or keys[pygame.K_UP] or keys[pygame.K_DOWN]:
                 if keys[pygame.K_w] or keys[pygame.K_UP]:
                     direction[1] = -1
@@ -259,16 +292,19 @@ def main():
                 direction[0] = 0
 
             direction = normalize(direction)
+
             if (length(direction) > 0):
                 player.set_dir(direction)
                 player.set_acc()
             else:
                 player.set_acc(0.0)  
         else:
+            # Change background when player dies
             if not the_end:
                 the_end = True
-                bg = Background("bg_dead.png")
+                bg = Background(BG_DEAD_IMG)
           
+        # Main update
         if not paused:  
             update(screen, world, bg)
 

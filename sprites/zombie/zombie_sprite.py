@@ -1,13 +1,19 @@
 from util import *
 
+
 ZOMBIE_VELOCITY = 3.0
 ZOMBIE_ACCELERATION = 2.0
 ZOMBIE_MASS = 180
 ZOMBIE_DRAG = 0.9
 ZOMBIE_DIMEN = 30
 ZOMBIE_HEALTH = 100
-
 WALK_PROB = [0.125] * 8
+
+FX_FLESH_SHOT = SOUND_FX_DIR + "bullet_flesh.wav"
+Z_MOTION = ZOMBIE_SPRITE_DIR + "motion/"
+Z_ATTACK = ZOMBIE_SPRITE_DIR + "attack/"
+Z_DEAD = ZOMBIE_SPRITE_DIR + "dead/1.png"
+
 
 class Zombie(pygame.sprite.Sprite):
     def __init__(self, dt=0.5):
@@ -46,19 +52,21 @@ class Zombie(pygame.sprite.Sprite):
         self.alive = True
         self.alert = True
 
-        self.flesh_hit = pygame.mixer.Sound('sound_fx/bullet_flesh.wav')
+        self.flesh_hit = pygame.mixer.Sound(FX_FLESH_SHOT)
         self.flesh_hit.set_volume(0.3)
         self.biting = False
+
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
         
-    def setup(self):
-        for img_name in os.listdir("zombie/"):
-            self.sprite_img.append(os.path.join("zombie", img_name))
 
-        for img_name in os.listdir("zombie_biting/"):
-            self.bite_img.append(os.path.join("zombie_biting", img_name))
+    def setup(self):
+        for img_name in os.listdir(Z_MOTION):
+            self.sprite_img.append(os.path.join(Z_MOTION, img_name))
+
+        for img_name in os.listdir(Z_ATTACK):
+            self.bite_img.append(os.path.join(Z_ATTACK, img_name))
 
         self.image = pygame.image.load(self.sprite_img[0])
         self.image = pygame.transform.scale(self.image, (self.dimen, self.dimen))
@@ -84,7 +92,9 @@ class Zombie(pygame.sprite.Sprite):
 
         self.dir = self.walks[random.randint(0, len(self.walks))]
 
-        direction = self.random_walk()
+
+        # Init RK4 solver
+        self.random_walk()
         self.set_pos(self.pos)
         self.set_vel()
         self.set_acc()
@@ -93,10 +103,10 @@ class Zombie(pygame.sprite.Sprite):
                                        self.vel[0], \
                                        self.vel[1]], self.curr_time)
 
+
     def random_walk(self):
         continue_random = random.uniform(0, 1)
 
-        direction = self.dir
         if continue_random < 0.05:
             rand_choice = random.uniform(0, 1)
             cum_prob = np.cumsum(self.walk_prob)
@@ -106,9 +116,7 @@ class Zombie(pygame.sprite.Sprite):
                     direction = self.walks[i]
                     break
 
-            direction = normalize(direction)
-
-        return direction
+            self.dir = normalize(direction)
 
 
     def set_pos(self, pos):
@@ -122,11 +130,14 @@ class Zombie(pygame.sprite.Sprite):
         self.pos = pos
         self.rect = self.pos
 
+
     def set_vel(self):
         self.vel = np.multiply(self.dir, self.mag_vel)
 
+
     def set_acc(self):
         self.acc = np.multiply(self.dir, self.mag_acc)
+
 
     def set_bullet(self, bullet=None):
         if bullet==None:
@@ -136,6 +147,7 @@ class Zombie(pygame.sprite.Sprite):
             self.bull_vel = normalize(bullet.vel)*bullet.mag_vel*10
             self.bull_mass = bullet.mass
 
+
     def set_towards_player(self, player):
         self.seesPlayer = True
         self.dir = normalize((player.pos + player.dimen/2) - (self.pos + self.dimen/2))
@@ -144,13 +156,16 @@ class Zombie(pygame.sprite.Sprite):
         self.set_acc()
         self.mag_acc /= 2.0
 
+
     def dec_health(self, damage):
         self.flesh_hit.play()
         self.health -= damage
 
         if self.health <= 0:
+            self.health = 0
             self.alive = False
-            self.image = pygame.image.load("dead_zombie/1.png")
+            self.image = pygame.image.load(Z_DEAD)
+
 
     def f(self, t, state):
         dx, dy = (state[2:4]*self.mass + 10*self.bull_vel*self.bull_mass)/(self.mass + self.bull_mass)
@@ -162,7 +177,7 @@ class Zombie(pygame.sprite.Sprite):
     def update(self):
         if self.alive:
             if not self.seesPlayer:
-                self.dir = self.random_walk()
+                self.random_walk()
                 self.set_acc()
 
             if not self.biting or self.bull_mass != 0.0:

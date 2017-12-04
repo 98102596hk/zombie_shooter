@@ -1,11 +1,21 @@
 from util import *
 
+
+PLAY_MOTION = PLAYER_SPRITE_DIR + "motion/"
+PLAY_DEAD = PLAYER_SPRITE_DIR + "dead/1.png"
+FX_FLESH_RIP = SOUND_FX_DIR + "flesh_rip.wav"
+FX_WASTED = SOUND_FX_DIR + "wasted.wav"
+FX_STEP_SAND = SOUND_FX_DIR + "step.wav"
+
+
 PLAYER_VELOCITY = 3.0
 PLAYER_ACCELERATION = 1.0
 PLAYER_MASS = 180
 PLAYER_DRAG = 0.09
 PLAYER_DIMEN = 30
 PLAYER_HEALTH = 200
+
+
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, dt=0.5):
@@ -24,31 +34,33 @@ class Player(pygame.sprite.Sprite):
         self.mag_vel = PLAYER_VELOCITY
         self.acc = np.array([0, 0])
         self.dir = np.array([0, -1])
+        self.solver = ode(self.f)
+        self.solver.set_integrator('dop853')
         
         self.mass = PLAYER_MASS
         self.drag = PLAYER_DRAG
         self.gun = "pistol"
         self.health = PLAYER_HEALTH
-        
-        self.solver = ode(self.f)
-        self.solver.set_integrator('dop853')
-
         self.alive = True
 
-        self.flesh_rip = pygame.mixer.Sound('sound_fx/flesh_rip.wav')
+        self.wasted = pygame.mixer.Sound(FX_WASTED)
+        self.flesh_rip = pygame.mixer.Sound(FX_FLESH_RIP)
         self.flesh_rip.set_volume(0.3)
-        self.wasted = pygame.mixer.Sound('sound_fx/wasted.wav')
-        self.step = pygame.mixer.Sound('sound_fx/step.wav')
+        self.step = pygame.mixer.Sound(FX_STEP_SAND)
         self.step.set_volume(0.08)
 
+    def draw(self, screen):
+        screen.blit(self.image, self.rect)
+
     def setup(self, pos=np.array([0, 0]), vel=np.array([0, 0])):
-        for img_name in os.listdir("player/"):
-            self.sprite_img.append(os.path.join("player", img_name))
+        for img_name in os.listdir(PLAY_MOTION):
+            self.sprite_img.append(os.path.join(PLAY_MOTION, img_name))
 
         self.image = pygame.image.load(self.sprite_img[0])
         self.image = pygame.transform.scale(self.image, (self.dimen, self.dimen))
         self.rect = self.image.get_rect()
 
+        # Init RK4 solver
         self.set_pos(pos)
         self.set_acc()
         self.solver.set_initial_value([self.pos[0], self.pos[1], self.vel[0], self.vel[1]], self.curr_time)
@@ -79,7 +91,7 @@ class Player(pygame.sprite.Sprite):
 
         if self.health <= 0:
             self.alive = False
-            self.image = pygame.image.load("dead_player/1.png")
+            self.image = pygame.image.load(PLAY_DEAD)
 
             if pygame.mixer.music.get_busy():
                 stop_music(0)
@@ -88,11 +100,8 @@ class Player(pygame.sprite.Sprite):
             self.flesh_rip.play()
 
     def f(self, t, state):
-        dx = state[2]
-        dvx = self.acc[0] - self.drag*state[2]
-
-        dy = state[3]
-        dvy = self.acc[1] - self.drag*state[3]
+        dx, dy = state[2:4]
+        dvx, dvy = self.acc - self.drag*state[2:4]
 
         return [dx, dy, dvx, dvy]
 
