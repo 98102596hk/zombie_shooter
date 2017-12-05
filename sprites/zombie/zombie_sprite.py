@@ -26,6 +26,7 @@ class Zombie(pygame.sprite.Sprite):
         self.rect = None
         self.angle = 0
         self.dimen = ZOMBIE_DIMEN
+        self.center = np.array([0, 0])
 
         self.curr_time = 0
         self.dt = dt
@@ -56,10 +57,6 @@ class Zombie(pygame.sprite.Sprite):
         self.flesh_hit.set_volume(0.3)
         self.biting = False
 
-
-    def draw(self, screen):
-        screen.blit(self.image, self.rect)
-        
 
     def setup(self):
         for img_name in os.listdir(Z_MOTION):
@@ -104,69 +101,6 @@ class Zombie(pygame.sprite.Sprite):
                                        self.vel[1]], self.curr_time)
 
 
-    def random_walk(self):
-        continue_random = random.uniform(0, 1)
-
-        if continue_random < 0.05:
-            rand_choice = random.uniform(0, 1)
-            cum_prob = np.cumsum(self.walk_prob)
-
-            for i in range(0, len(cum_prob)):
-                if rand_choice < cum_prob[i]:
-                    direction = self.walks[i]
-                    break
-
-            self.dir = normalize(direction)
-
-
-    def set_pos(self, pos):
-        if np.fabs(self.vel[0]) > 0.1 or np.fabs(self.vel[1]) > 0.1:
-            if not self.biting:
-                animate(self)
-            else:
-                animate_with(self, self.bite_img)
-            rotate_dir(self, self.dir)
-
-        self.pos = pos
-        self.rect = self.pos
-
-
-    def set_vel(self):
-        self.vel = np.multiply(self.dir, self.mag_vel)
-
-
-    def set_acc(self):
-        self.acc = np.multiply(self.dir, self.mag_acc)
-
-
-    def set_bullet(self, bullet=None):
-        if bullet==None:
-            self.bull_vel = np.array([0, 0])
-            self.bull_mass = 0.0
-        else:
-            self.bull_vel = normalize(bullet.vel)*bullet.mag_vel*10
-            self.bull_mass = bullet.mass
-
-
-    def set_towards_player(self, player):
-        self.seesPlayer = True
-        self.dir = normalize((player.pos + player.dimen/2) - (self.pos + self.dimen/2))
-        self.set_pos(self.pos)
-        self.mag_acc *= 2.0
-        self.set_acc()
-        self.mag_acc /= 2.0
-
-
-    def dec_health(self, damage):
-        self.flesh_hit.play()
-        self.health -= damage
-
-        if self.health <= 0:
-            self.health = 0
-            self.alive = False
-            self.image = pygame.image.load(Z_DEAD)
-
-
     def f(self, t, state):
         dx, dy = (state[2:4]*self.mass + 10*self.bull_vel*self.bull_mass)/(self.mass + self.bull_mass)
         dvx, dvy = self.acc - self.drag*state[2:4]
@@ -197,6 +131,75 @@ class Zombie(pygame.sprite.Sprite):
             if (self.bull_mass != 0.0):
                 self.i += 1
 
-                if self.i > 50:
+                if self.i > 10:
                     self.i  = 0
                     self.set_bullet()
+
+
+    def random_walk(self):
+        continue_random = random.uniform(0, 1)
+
+        if continue_random < 0.05:
+            rand_choice = random.uniform(0, 1)
+            cum_prob = np.cumsum(self.walk_prob)
+
+            for i in range(0, len(cum_prob)):
+                if rand_choice < cum_prob[i]:
+                    direction = self.walks[i]
+                    break
+
+            self.dir = normalize(direction)
+
+
+    def draw(self, screen):
+        screen.blit(self.image, self.rect)
+
+
+    def set_towards_player(self, player):
+        self.seesPlayer = True
+        self.dir = normalize((player.pos + player.dimen/2) - (self.pos + self.dimen/2))
+        self.set_pos(self.pos)
+        self.mag_acc *= 2.0
+        self.set_acc()
+        self.mag_acc /= 2.0
+
+
+    def set_bullet(self, bullet=None):
+        if bullet==None:
+            self.bull_vel = np.array([0, 0])
+            self.bull_mass = 0.0
+        else:
+            self.bull_vel = normalize(bullet.vel)*bullet.mag_vel*10
+            self.bull_mass = bullet.mass
+
+
+    def set_pos(self, pos):
+        if np.fabs(self.vel[0]) > 0.1 or np.fabs(self.vel[1]) > 0.1:
+            if not self.biting:
+                animate(self)
+            else:
+                animate_with(self, self.bite_img)
+            rotate(self, self.dir)
+
+        self.pos = pos
+        self.rect = self.pos
+        self.center[0] = self.pos[0] + self.dimen/2.0
+        self.center[1] = self.pos[1] + self.dimen/2.0
+
+
+    def set_vel(self):
+        self.vel = np.multiply(self.dir, self.mag_vel)
+
+
+    def set_acc(self):
+        self.acc = np.multiply(self.dir, self.mag_acc)
+
+
+    def dec_health(self, damage):
+        self.flesh_hit.play()
+        self.health -= damage
+
+        if self.health <= 0:
+            self.health = 0
+            self.alive = False
+            self.image = pygame.image.load(Z_DEAD)

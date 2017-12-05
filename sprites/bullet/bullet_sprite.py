@@ -2,9 +2,9 @@ from util import *
 
 
 #             Weapon Type  Bullet Speed, Bullet Mass, Bullet Dimen, Damage
-GUN_CONFIG = {"pistol"  : [15,           0.5,         10,           10], \
-              "machine" : [10,           0.25,        15,           1], \
-              "shotgun" : [15,           10.0,        15,           100]}
+GUN_CONFIG = {"pistol"  : [15,           1,           10,           10], \
+              "machine" : [10,           1,           15,           1], \
+              "shotgun" : [15,           10.0,        15,           50]}
 
 SHOTGUN_DEPTH = 200.0
 
@@ -17,6 +17,7 @@ class Bullet(pygame.sprite.Sprite):
         self.sprite_img = []
         self.image = None
         self.rect = None
+        self.center = np.array([0, 0])
         
         self.pos = np.array([0,0])
         self.vel = np.array([0,0])
@@ -30,6 +31,7 @@ class Bullet(pygame.sprite.Sprite):
 
         self.type = "pistol"
         self.gun_config = GUN_CONFIG.get(self.type)
+        self.dimen = self.gun_config[2]
         self.sound = None
         self.damage = 0
         
@@ -41,8 +43,9 @@ class Bullet(pygame.sprite.Sprite):
         # Get gun configuration and set up bullet image based on gun type
         img_name = BULLET_SPRITE_DIR + self.type + ".png"
         self.gun_config = GUN_CONFIG.get(self.type)
+        self.dimen = self.gun_config[2]
         self.image = pygame.image.load(img_name)
-        self.image = pygame.transform.scale(self.image, (int(self.gun_config[2]), int(self.gun_config[2])))
+        self.image = pygame.transform.scale(self.image, (int(self.dimen), int(self.dimen)))
         self.rect = self.image.get_rect()
 
         # Set up the gun fire sound and play it
@@ -61,18 +64,9 @@ class Bullet(pygame.sprite.Sprite):
         self.damage = self.gun_config[3]
         
         # Init RK4 solver
-        self.set_vel(normalize(vel))
+        self.set_vel(vel)
         self.set_pos(pos)
         self.solver.set_initial_value([self.pos[0], self.pos[1], self.vel[0], self.vel[1]], self.curr_time)
-
-
-    def set_pos(self, pos):
-        self.pos = pos
-        self.rect = self.pos
-
-
-    def set_vel(self, direction):
-        self.vel = direction*self.mag_vel
 
 
     def f(self, t, state):
@@ -99,4 +93,14 @@ class Bullet(pygame.sprite.Sprite):
                 self.set_pos(pos)
             else:
                 self.kill()
+
+
+    def set_pos(self, pos):
+        self.pos = pos
+        self.rect = self.pos
+        self.center[0] = self.pos[0] + self.dimen/2.0
+        self.center[1] = self.pos[1] + self.dimen/2.0
+
+    def set_vel(self, direction):
+        self.vel = direction*self.mag_vel
 

@@ -36,8 +36,7 @@ def rotate(sprite, pos):
 
 
 def rotate_dir(sprite, direction):
-    sprite.angle = 270 - np.degrees(np.arctan2\
-                   (direction[1], direction[0]))
+    sprite.angle = 180 + np.degrees(np.arctan2(direction[0], direction[1]))
 
     sprite.image = pygame.transform.rotate(sprite.image, sprite.angle)
 
@@ -46,14 +45,12 @@ def animate(sprite):
     sprite.image = pygame.image.load\
                    (sprite.sprite_img[sprite.i % len(sprite.sprite_img)])
 
-    # sprite.image = pygame.transform.rotate(sprite.image, sprite.angle)
     sprite.rect = sprite.image.get_rect()
 
 def animate_with(sprite, imgs):
     sprite.i += 1
     sprite.image = pygame.image.load(imgs[sprite.i % len(imgs)])
 
-    # sprite.image = pygame.transform.rotate(sprite.image, sprite.angle)
     sprite.rect = sprite.image.get_rect()
 
 

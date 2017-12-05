@@ -43,14 +43,17 @@ class Z_World():
         self.zombieShot = False
         self.zombie_health = 100
         self.z_count = 0
+        self.bullet_dir = np.array([0, -1])
 
         self.wasted_logo = pygame.image.load(WASTED_LOGO)
         self.wasted_w = self.wasted_logo.get_width()
         self.wasted_h = self.wasted_logo.get_height()
         self.alert_sound = pygame.mixer.Sound(FX_ALERT)
 
+
     def add_player(self, sprite):
         self.p = sprite
+
 
     def add_zombie(self, sprite):
         self.z_count += 1
@@ -82,14 +85,13 @@ class Z_World():
 
     def update(self):
         self.p.update()
-            
-
+        
         self.alert = True
         for z in self.zombies:
             if z.alive:
                 if self.p.alive:
                     # Zombie near player
-                    dist = length((self.p.pos + self.p.dimen/2) - (z.pos + z.dimen/2))
+                    dist = length(self.p.center - z.center)
                     if dist < 200:
                         z.set_towards_player(self.p)    
                         if z.alert and not pygame.mixer.music.get_busy():
@@ -106,7 +108,7 @@ class Z_World():
                                 self.p.dec_health()
 
                                 if not self.p.alive:
-                                    rotate(self.p, z.pos)
+                                    rotate(self.p, z.center)
                         else:
                             z.biting = False
                     else:
@@ -114,6 +116,9 @@ class Z_World():
                         z.seesPlayer = False
 
                     self.alert = self.alert and z.alert
+
+                    if length(self.p.acc) > 0.0:
+                        self.bullet_dir = normalize(self.p.acc)
                 else:
                     if z.seesPlayer:
                         z.seesPlayer = False
@@ -121,39 +126,36 @@ class Z_World():
             
             z.update()
 
-
         if self.alert and pygame.mixer.music.get_busy():
             stop_music()
-
 
         for b in self.bullets:
             if not b.shot:
                 b.shot = True
                 b.type = self.p.gun
 
-                b.setup(self.p.pos + self.p.dimen/2 - b.gun_config[2]/2, self.p.vel)
+               
+                b.setup(self.p.center - b.dimen/2, self.bullet_dir)
                 b.image = pygame.transform.rotate(b.image, self.p.angle)
 
             # Zombie-Bullet collision
             for z in self.zombies:
                 if z.alive:
-                    if length(b.pos - z.pos) <= z.dimen:
+                    if length(b.center - z.center) < z.dimen/2.0:
                         z.dec_health(b.damage)
                         z.set_bullet(b)
                         b.kill()
 
                         if not z.alive:
-                            rotate(z, self.p.pos)
+                            rotate(z, self.p.center)
                             self.z_count -= 1
 
                         self.zombie_health = z.health
                         self.zombieShot = True
                         
 
-                b.update()           
+                b.update()   
 
-
-        
         self.draw_bullets()
 
         if self.p.alive:
@@ -179,7 +181,6 @@ def update(screen, world, bg):
     screen.blit(bg.image, bg.rect)
     world.update()
     pygame.display.update()
-
 
 
 def reset_world(world):
@@ -293,7 +294,7 @@ def main():
 
             direction = normalize(direction)
 
-            if (length(direction) > 0):
+            if length(direction) > 0.0:
                 player.set_dir(direction)
                 player.set_acc()
             else:
