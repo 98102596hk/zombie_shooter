@@ -1,14 +1,19 @@
 from util import *
 
 
+# GUN CONFIGURATION
+# =============================================================================
 #             Weapon Type  Bullet Speed, Bullet Mass, Bullet Dimen, Damage
 GUN_CONFIG = {"pistol"  : [15,           1,           10,           10], \
               "machine" : [10,           1,           15,           1], \
               "shotgun" : [15,           10.0,        15,           50]}
 
 SHOTGUN_DEPTH = 200.0
+# =============================================================================
 
 
+# Bullet Sprite
+# =============================================================================
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, dt=0.2):
         pygame.sprite.Sprite.__init__(self)
@@ -103,4 +108,5 @@ class Bullet(pygame.sprite.Sprite):
 
     def set_vel(self, direction):
         self.vel = direction*self.mag_vel
+# =============================================================================
 

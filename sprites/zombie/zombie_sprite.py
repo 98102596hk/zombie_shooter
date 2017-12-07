@@ -1,6 +1,8 @@
 from util import *
 
 
+# CONSTANTS
+# =============================================================================
 ZOMBIE_VELOCITY = 3.0
 ZOMBIE_ACCELERATION = 2.0
 ZOMBIE_MASS = 180
@@ -13,8 +15,11 @@ FX_FLESH_SHOT = SOUND_FX_DIR + "bullet_flesh.wav"
 Z_MOTION = ZOMBIE_SPRITE_DIR + "motion/"
 Z_ATTACK = ZOMBIE_SPRITE_DIR + "attack/"
 Z_DEAD = ZOMBIE_SPRITE_DIR + "dead/1.png"
+# =============================================================================
 
 
+# Zombie Sprite
+# =============================================================================
 class Zombie(pygame.sprite.Sprite):
     def __init__(self, dt=0.5):
         pygame.sprite.Sprite.__init__(self)
@@ -203,3 +208,4 @@ class Zombie(pygame.sprite.Sprite):
             self.health = 0
             self.alive = False
             self.image = pygame.image.load(Z_DEAD)
+# =============================================================================

@@ -1,12 +1,13 @@
 from util import *
 
 
+# CONSTANTS
+# =============================================================================
 PLAY_MOTION = PLAYER_SPRITE_DIR + "motion/"
 PLAY_DEAD = PLAYER_SPRITE_DIR + "dead/1.png"
 FX_FLESH_RIP = SOUND_FX_DIR + "flesh_rip.wav"
 FX_WASTED = SOUND_FX_DIR + "wasted.wav"
 FX_STEP_SAND = SOUND_FX_DIR + "step.wav"
-
 
 PLAYER_VELOCITY = 3.0
 PLAYER_ACCELERATION = 1.0
@@ -14,9 +15,11 @@ PLAYER_MASS = 180
 PLAYER_DRAG = 0.09
 PLAYER_DIMEN = 30
 PLAYER_HEALTH = 200
+# =============================================================================
 
 
-
+# Player Sprite
+# =============================================================================
 class Player(pygame.sprite.Sprite):
     def __init__(self, dt=0.5):
         pygame.sprite.Sprite.__init__(self)
@@ -125,3 +128,4 @@ class Player(pygame.sprite.Sprite):
             self.wasted.play()
         else:
             self.flesh_rip.play()
+# =============================================================================

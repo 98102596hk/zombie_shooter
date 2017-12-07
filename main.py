@@ -4,7 +4,8 @@ from player_sprite import *
 from bullet_sprite import *
 
 
-# Constants setup
+# CONSTANTS
+# =============================================================================
 TITLE = "Z WORLD SURVIVAL"
 
 BG_IMG      = BG_IMG_DIR + "bg.png"
@@ -15,15 +16,22 @@ FX_ALERT = SOUND_FX_DIR + "alert/wav"
 
 NUM_ZOMBIES = 5
 NUM_LEVELS = 5
+# =============================================================================
 
 
+# Background Class
+# =============================================================================
 class Background(pygame.sprite.Sprite):
     def __init__(self, image=BG_IMG):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.image.load(image)
         self.image = pygame.transform.scale(self.image, (int(WIDTH), int(HEIGHT)))
         self.rect = self.image.get_rect()
+# =============================================================================
 
+
+# Zombie World Class
+# =============================================================================
 class Z_World():
     def __init__(self, screen):
         self.i = 0
@@ -50,24 +58,25 @@ class Z_World():
         self.wasted_h = self.wasted_logo.get_height()
         self.alert_sound = pygame.mixer.Sound(FX_ALERT)
 
-
+    # adds player sprite to world
     def add_player(self, sprite):
         self.p = sprite
 
-
+    # adds zombie to zombie sprite group 
     def add_zombie(self, sprite):
         self.z_count += 1
         self.zombies.add(sprite)
 
-
+    # adds bullet to bullet sprite group
     def add_bullet(self, sprite):
         self.bullets.add(sprite)
 
-
+    # draws the player on the screen
     def draw_player(self):
         self.p.draw(self.screen)
 
-
+    # draws all the zombies on screen (dead ones first so they dont cover the
+    # alive ones)
     def draw_zombies(self):
         group = pygame.sprite.Group()
         for z in self.zombies:
@@ -78,11 +87,12 @@ class Z_World():
 
         group.draw(self.screen)
     
-
+    # draws bullets on screen
     def draw_bullets(self):
         self.bullets.draw(self.screen)
 
-
+    # main screen update
+    # used to handle interaction between sprites
     def update(self):
         self.p.update()
         
@@ -129,6 +139,7 @@ class Z_World():
         if self.alert and pygame.mixer.music.get_busy():
             stop_music()
 
+        # Go through each bullet to see if it hits a zombie
         for b in self.bullets:
             if not b.shot:
                 b.shot = True
@@ -156,6 +167,7 @@ class Z_World():
 
                 b.update()   
 
+        # Drawing sprites
         self.draw_bullets()
 
         if self.p.alive:
@@ -174,15 +186,18 @@ class Z_World():
 
         pygame.draw.rect(self.screen, BLACK, (0, 0, 210, 40))
         pygame.draw.rect(self.screen, GREEN, (5, 5, self.p.health, 30))
+# =============================================================================
 
 
+# Helper Functions
+# =============================================================================
 # Clears and updates window screen
 def update(screen, world, bg):
     screen.blit(bg.image, bg.rect)
     world.update()
     pygame.display.update()
 
-
+# Used at the start of the game and at the start of each level
 def reset_world(world):
     # Add player to zombie world and position in the center of the screen
     player = Player()
@@ -206,8 +221,12 @@ def setup_zombies(world, num=NUM_ZOMBIES):
         zombie = Zombie()
         zombie.setup()
         world.add_zombie(zombie)
+# =============================================================================
 
 
+
+# Main
+# =============================================================================
 def main():
     # Initialize Pygame
     pygame.init()
@@ -242,6 +261,7 @@ def main():
                 pygame.quit()
                 exit()
 
+            # Gun type input
             if event.type == pygame.KEYDOWN:
                 # Gun choice
                 if event.key == pygame.K_1:
@@ -308,7 +328,7 @@ def main():
         # Main update
         if not paused:  
             update(screen, world, bg)
-
+# =============================================================================
 
 if __name__ == '__main__':
     main()
